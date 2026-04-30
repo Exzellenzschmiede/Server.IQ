@@ -25,6 +25,10 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
 }
 
+function formatKBps(bytesPerSec: number): string {
+  return `${(bytesPerSec / 1024).toFixed(1)} KB/s`;
+}
+
 function formatUptime(seconds: number): string {
   const d = Math.floor(seconds / 86400);
   const h = Math.floor((seconds % 86400) / 3600);
@@ -95,7 +99,7 @@ export default function DashboardPage() {
         <GaugeChart
           value={
             primaryNet
-              ? Math.min(((primaryNet.bytes_recv_per_sec + primaryNet.bytes_sent_per_sec) / (1024 * 1024)) * 10, 100)
+              ? Math.min((primaryNet.bytes_recv_per_sec + primaryNet.bytes_sent_per_sec) / 1024 / 10, 100)
               : 0
           }
           label="Network"
@@ -130,8 +134,8 @@ export default function DashboardPage() {
         {primaryNet && (
           <MetricCard
             label={`Network (${primaryNet.name})`}
-            value={`↓ ${formatBytes(primaryNet.bytes_recv_per_sec)}/s`}
-            sub={`↑ ${formatBytes(primaryNet.bytes_sent_per_sec)}/s`}
+            value={`↓ ${formatKBps(primaryNet.bytes_recv_per_sec)}`}
+            sub={`↑ ${formatKBps(primaryNet.bytes_sent_per_sec)}`}
             icon="🌐"
             color="rose"
           />
