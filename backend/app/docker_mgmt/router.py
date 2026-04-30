@@ -30,7 +30,7 @@ async def get_containers(
     all: bool = Query(True),
     _: User = Depends(get_current_user),
 ):
-    return list_containers(all_containers=all)
+    return await list_containers(all_containers=all)
 
 
 @router.get("/containers/{container_id}", response_model=ContainerInfo)
@@ -38,17 +38,17 @@ async def get_container_detail(
     container_id: str,
     _: User = Depends(get_current_user),
 ):
-    return get_container(container_id)
+    return await get_container(container_id)
 
 
 @router.post("/containers/{container_id}/start", response_model=ContainerActionResponse)
 async def start(container_id: str, _: User = Depends(get_current_user)):
-    return start_container(container_id)
+    return await start_container(container_id)
 
 
 @router.post("/containers/{container_id}/stop", response_model=ContainerActionResponse)
 async def stop(container_id: str, _: User = Depends(get_current_user)):
-    return stop_container(container_id)
+    return await stop_container(container_id)
 
 
 @router.delete("/containers/{container_id}", response_model=ContainerActionResponse)
@@ -57,17 +57,17 @@ async def remove(
     force: bool = Query(False),
     _: User = Depends(get_current_user),
 ):
-    return remove_container(container_id, force=force)
+    return await remove_container(container_id, force=force)
 
 
 @router.post("/containers/{container_id}/reinstall", response_model=ReinstallResponse)
 async def reinstall(container_id: str, _: User = Depends(get_current_user)):
-    return reinstall_container(container_id)
+    return await reinstall_container(container_id)
 
 
 @router.get("/images", response_model=list[ImageInfo])
 async def images(_: User = Depends(get_current_user)):
-    return list_images()
+    return await list_images()
 
 
 @router.websocket("/logs/{container_id}")

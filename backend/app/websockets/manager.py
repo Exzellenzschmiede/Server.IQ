@@ -1,23 +1,8 @@
-import asyncio
-from typing import Generator
+from typing import AsyncGenerator
 
 from fastapi import WebSocket
 
 
-async def stream_to_websocket(ws: WebSocket, generator: Generator[str, None, None]) -> None:
-    loop = asyncio.get_event_loop()
-
-    def _next():
-        try:
-            return next(generator)
-        except StopIteration:
-            return None
-
-    try:
-        while True:
-            line = await loop.run_in_executor(None, _next)
-            if line is None:
-                break
-            await ws.send_text(line)
-    except Exception:
-        pass
+async def stream_to_websocket(ws: WebSocket, generator: AsyncGenerator[str, None]) -> None:
+    async for line in generator:
+        await ws.send_text(line)

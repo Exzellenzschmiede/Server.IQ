@@ -24,7 +24,7 @@ MONITORED_SERVICES = [
     ("nginx",      "NGINX",      "host.docker.internal", 80),
     ("postgresql", "PostgreSQL", "host.docker.internal", 5432),
     ("ssh",        "SSH",        "host.docker.internal", 22),
-    ("docker",     "Docker",     None,                   None),  # checked via socket file
+    ("docker",     "Docker",     None,                   None),  # checked via Unix socket
 ]
 
 
@@ -107,11 +107,15 @@ def _check_tcp(host: str, port: int, timeout: float = 2.0) -> bool:
 
 
 def _check_docker_socket() -> bool:
+    """Ping Docker via raw HTTP over the Unix socket — no library needed."""
     try:
-        import docker
-        client = docker.from_env()
-        client.ping()
-        return True
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.settimeout(2.0)
+        sock.connect("/var/run/docker.sock")
+        sock.sendall(b"GET /_ping HTTP/1.0\r\nHost: localhost\r\n\r\n")
+        response = sock.recv(256)
+        sock.close()
+        return b"200 OK" in response
     except Exception:
         return False
 
