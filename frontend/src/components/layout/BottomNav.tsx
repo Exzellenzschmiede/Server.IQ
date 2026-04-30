@@ -5,6 +5,7 @@ const NAV = [
   { to: "/",           label: "Dashboard", icon: "▣",  mono: false },
   { to: "/services",   label: "Services",  icon: "⚡", mono: false },
   { to: "/containers", label: "Container", icon: "🐳", mono: false },
+  { to: "/firewall",   label: "Firewall",  icon: "🛡", mono: false },
   { to: "/console",    label: "Konsole",   icon: ">_", mono: true  },
 ];
 
@@ -25,15 +26,15 @@ export default function BottomNav() {
         </NavLink>
       ))}
       {user?.is_admin && (
-        <NavLink to="/settings"
+        <NavLink to="/notifications"
           className={({ isActive }) =>
             `flex-1 flex flex-col items-center gap-0.5 py-2 text-xs transition-colors ${
               isActive ? "text-indigo-400" : "text-slate-500"
             }`
           }
         >
-          <span className="text-lg leading-none">🔧</span>
-          Settings
+          <span className="text-lg leading-none">🔔</span>
+          Alerts
         </NavLink>
       )}
     </nav>

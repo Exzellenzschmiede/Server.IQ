@@ -11,19 +11,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.system.schemas import (
     CpuMetrics,
+    DiskIO,
     DiskPartition,
+    LoadAverage,
     MemoryMetrics,
+    MetricHistoryPoint,
     NetworkInterface,
+    ProcessInfo,
     ServiceStatus,
     SystemInfo,
     SystemMetrics,
 )
 
-# Track previous network counters for rate calculation
+# ── Rate tracking ──────────────────────────────────────────────────────────────
 _prev_net: dict = {}
 _prev_net_time: float = 0.0
+_prev_disk_io: object = None
+_prev_disk_io_time: float = 0.0
 
-# Fallback used when the DB table is empty (bare-metal: use localhost)
+# Fallback used when the DB table is empty
 _DEFAULT_SERVICES = [
     ("nginx",      "NGINX",      "127.0.0.1", 80),
     ("postgresql", "PostgreSQL", "127.0.0.1", 5432),
@@ -73,9 +79,32 @@ def get_disk_metrics() -> list[DiskPartition]:
     return partitions
 
 
+def get_disk_io_metrics() -> DiskIO | None:
+    global _prev_disk_io, _prev_disk_io_time
+    now = time.time()
+    try:
+        current = psutil.disk_io_counters()
+        if not current:
+            return None
+        elapsed = now - _prev_disk_io_time if _prev_disk_io_time else 1.0
+        if _prev_disk_io:
+            read_rate = (current.read_bytes - _prev_disk_io.read_bytes) / elapsed
+            write_rate = (current.write_bytes - _prev_disk_io.write_bytes) / elapsed
+        else:
+            read_rate = 0.0
+            write_rate = 0.0
+        _prev_disk_io = current
+        _prev_disk_io_time = now
+        return DiskIO(
+            read_bytes_per_sec=max(0.0, read_rate),
+            write_bytes_per_sec=max(0.0, write_rate),
+        )
+    except Exception:
+        return None
+
+
 def get_network_metrics() -> list[NetworkInterface]:
     global _prev_net, _prev_net_time
-
     now = time.time()
     current = psutil.net_io_counters(pernic=True)
     elapsed = now - _prev_net_time if _prev_net_time else 1.0
@@ -102,6 +131,42 @@ def get_network_metrics() -> list[NetworkInterface]:
     return result
 
 
+def get_load_average() -> LoadAverage:
+    try:
+        l1, l5, l15 = psutil.getloadavg()
+    except AttributeError:
+        l1 = l5 = l15 = 0.0
+    return LoadAverage(load_1=round(l1, 2), load_5=round(l5, 2), load_15=round(l15, 2))
+
+
+def get_tcp_connections() -> int:
+    try:
+        return len(psutil.net_connections(kind="tcp"))
+    except Exception:
+        return 0
+
+
+def get_top_processes(sort_by: str = "cpu", limit: int = 5) -> list[ProcessInfo]:
+    procs: list[ProcessInfo] = []
+    for p in psutil.process_iter(["pid", "name", "cpu_percent", "memory_percent", "memory_info", "status", "username"]):
+        try:
+            i = p.info
+            procs.append(ProcessInfo(
+                pid=i["pid"],
+                name=i["name"] or "",
+                cpu_percent=round(i.get("cpu_percent") or 0.0, 1),
+                memory_percent=round(i.get("memory_percent") or 0.0, 1),
+                memory_bytes=(i.get("memory_info") or type("_", (), {"rss": 0})()).rss,
+                status=i.get("status") or "",
+                username=i.get("username") or "",
+            ))
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    key_attr = "cpu_percent" if sort_by == "cpu" else "memory_percent"
+    procs.sort(key=lambda p: getattr(p, key_attr), reverse=True)
+    return procs[:limit]
+
+
 def _check_tcp(host: str, port: int, timeout: float = 2.0) -> bool:
     try:
         with socket.create_connection((host, port), timeout=timeout):
@@ -111,7 +176,6 @@ def _check_tcp(host: str, port: int, timeout: float = 2.0) -> bool:
 
 
 def _check_docker_socket() -> bool:
-    """Ping Docker via raw HTTP over the Unix socket — no library needed."""
     try:
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.settimeout(2.0)
@@ -174,9 +238,7 @@ async def service_action(key: str, action: str, db: AsyncSession) -> dict:
     try:
         result = subprocess.run(
             ["sudo", "systemctl", action, key],
-            capture_output=True,
-            text=True,
-            timeout=30,
+            capture_output=True, text=True, timeout=30,
         )
         output = (result.stdout + result.stderr).strip()
         return {
@@ -191,11 +253,39 @@ async def service_action(key: str, action: str, db: AsyncSession) -> dict:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
 
 
+async def get_metrics_history(db: AsyncSession, hours: int = 2) -> list[MetricHistoryPoint]:
+    from datetime import datetime, timedelta, timezone
+    from app.models import MetricSnapshot
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    result = await db.execute(
+        select(MetricSnapshot)
+        .where(MetricSnapshot.recorded_at >= cutoff)
+        .order_by(MetricSnapshot.recorded_at)
+    )
+    rows = result.scalars().all()
+    return [
+        MetricHistoryPoint(
+            timestamp=row.recorded_at.timestamp(),
+            cpu_percent=row.cpu_percent,
+            memory_percent=row.memory_percent,
+            disk_percent=row.disk_percent,
+            disk_read_bps=row.disk_read_bps,
+            disk_write_bps=row.disk_write_bps,
+            net_recv_bps=row.net_recv_bps,
+            net_sent_bps=row.net_sent_bps,
+        )
+        for row in rows
+    ]
+
+
 def get_all_metrics() -> SystemMetrics:
     return SystemMetrics(
         cpu=get_cpu_metrics(),
         memory=get_memory_metrics(),
         disk=get_disk_metrics(),
         network=get_network_metrics(),
+        disk_io=get_disk_io_metrics(),
+        load_avg=get_load_average(),
+        tcp_connections=get_tcp_connections(),
         timestamp=time.time(),
     )

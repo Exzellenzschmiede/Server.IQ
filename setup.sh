@@ -79,7 +79,15 @@ deploy ALL=(ALL) NOPASSWD: \
   /usr/sbin/nginx -t, \
   /bin/nginx -t, \
   /bin/cp /opt/server-iq/nginx/server-iq.conf /etc/nginx/sites-available/server-iq.conf, \
-  /bin/ln -sf /etc/nginx/sites-available/server-iq.conf /etc/nginx/sites-enabled/server-iq.conf
+  /bin/ln -sf /etc/nginx/sites-available/server-iq.conf /etc/nginx/sites-enabled/server-iq.conf, \
+  /usr/sbin/ufw status numbered, \
+  /usr/sbin/ufw --force enable, \
+  /usr/sbin/ufw --force disable, \
+  /usr/sbin/ufw allow *, \
+  /usr/sbin/ufw deny *, \
+  /usr/sbin/ufw reject *, \
+  /usr/sbin/ufw limit *, \
+  /usr/sbin/ufw --force delete *
 EOF
 chmod 440 "$SUDOERS_FILE"
 echo "✓ sudoers configured"

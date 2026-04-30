@@ -10,11 +10,16 @@ import AppLogsPage from "./pages/AppLogsPage";
 import ConsolePage from "./pages/ConsolePage";
 import ContainerLogsPage from "./pages/ContainerLogsPage";
 import ContainersPage from "./pages/ContainersPage";
+import CronPage from "./pages/CronPage";
 import DashboardPage from "./pages/DashboardPage";
+import FilesPage from "./pages/FilesPage";
+import FirewallPage from "./pages/FirewallPage";
 import LoginPage from "./pages/LoginPage";
+import NotificationsPage from "./pages/NotificationsPage";
 import ServicesPage from "./pages/ServicesPage";
 import SettingsPage from "./pages/SettingsPage";
 import SetupPage from "./pages/SetupPage";
+import SslPage from "./pages/SslPage";
 import UsersPage from "./pages/UsersPage";
 
 function useSetupRequired() {
@@ -62,7 +67,12 @@ export default function App() {
                     <Route path="containers" element={<ContainersPage />} />
                     <Route path="containers/:id/logs" element={<ContainerLogsPage />} />
                     <Route path="console" element={<ConsolePage />} />
+                    <Route path="firewall" element={<FirewallPage />} />
+                    <Route path="ssl" element={<SslPage />} />
+                    <Route path="cron" element={<CronPage />} />
+                    <Route path="files" element={<FilesPage />} />
                     <Route path="users" element={<RequireAdmin><UsersPage /></RequireAdmin>} />
+                    <Route path="notifications" element={<RequireAdmin><NotificationsPage /></RequireAdmin>} />
                     <Route path="settings" element={<RequireAdmin><SettingsPage /></RequireAdmin>} />
                     <Route path="logs" element={<RequireAdmin><AppLogsPage /></RequireAdmin>} />
                   </Route>

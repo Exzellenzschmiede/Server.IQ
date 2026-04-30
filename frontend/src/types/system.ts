@@ -22,6 +22,11 @@ export interface DiskPartition {
   fstype: string;
 }
 
+export interface DiskIO {
+  read_bytes_per_sec: number;
+  write_bytes_per_sec: number;
+}
+
 export interface NetworkInterface {
   name: string;
   bytes_sent: number;
@@ -30,11 +35,20 @@ export interface NetworkInterface {
   bytes_recv_per_sec: number;
 }
 
+export interface LoadAverage {
+  load_1: number;
+  load_5: number;
+  load_15: number;
+}
+
 export interface SystemMetrics {
   cpu: CpuMetrics;
   memory: MemoryMetrics;
   disk: DiskPartition[];
   network: NetworkInterface[];
+  disk_io: DiskIO | null;
+  load_avg: LoadAverage;
+  tcp_connections: number;
   timestamp: number;
 }
 
@@ -63,4 +77,25 @@ export interface ServiceActionResponse {
   action: string;
   service: string;
   message: string;
+}
+
+export interface ProcessInfo {
+  pid: number;
+  name: string;
+  cpu_percent: number;
+  memory_percent: number;
+  memory_bytes: number;
+  status: string;
+  username: string;
+}
+
+export interface MetricHistoryPoint {
+  timestamp: number;
+  cpu_percent: number;
+  memory_percent: number;
+  disk_percent: number;
+  disk_read_bps: number;
+  disk_write_bps: number;
+  net_recv_bps: number;
+  net_sent_bps: number;
 }

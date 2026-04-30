@@ -27,6 +27,11 @@ class DiskPartition(BaseModel):
     fstype: str
 
 
+class DiskIO(BaseModel):
+    read_bytes_per_sec: float
+    write_bytes_per_sec: float
+
+
 class NetworkInterface(BaseModel):
     name: str
     bytes_sent: int
@@ -35,11 +40,20 @@ class NetworkInterface(BaseModel):
     bytes_recv_per_sec: float
 
 
+class LoadAverage(BaseModel):
+    load_1: float
+    load_5: float
+    load_15: float
+
+
 class SystemMetrics(BaseModel):
     cpu: CpuMetrics
     memory: MemoryMetrics
     disk: list[DiskPartition]
     network: list[NetworkInterface]
+    disk_io: DiskIO | None
+    load_avg: LoadAverage
+    tcp_connections: int
     timestamp: float
 
 
@@ -70,3 +84,24 @@ class ServiceActionResponse(BaseModel):
     action: str
     service: str
     message: str
+
+
+class ProcessInfo(BaseModel):
+    pid: int
+    name: str
+    cpu_percent: float
+    memory_percent: float
+    memory_bytes: int
+    status: str
+    username: str
+
+
+class MetricHistoryPoint(BaseModel):
+    timestamp: float
+    cpu_percent: float
+    memory_percent: float
+    disk_percent: float
+    disk_read_bps: float
+    disk_write_bps: float
+    net_recv_bps: float
+    net_sent_bps: float

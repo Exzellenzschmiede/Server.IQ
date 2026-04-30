@@ -3,22 +3,27 @@ import { useAuth } from "../../auth/AuthContext";
 import Logo from "../ui/Logo";
 
 const NAV = [
-  { to: "/",          label: "Dashboard",  icon: "▣" },
-  { to: "/services",  label: "Services",   icon: "⚡" },
-  { to: "/containers",label: "Container",  icon: "🐳" },
-  { to: "/console",   label: "Konsole",    icon: ">_" },
+  { to: "/",           label: "Dashboard",   icon: "▣" },
+  { to: "/services",   label: "Services",    icon: "⚡" },
+  { to: "/containers", label: "Container",   icon: "🐳" },
+  { to: "/console",    label: "Konsole",     icon: ">_" },
+  { to: "/firewall",   label: "Firewall",    icon: "🛡" },
+  { to: "/ssl",        label: "SSL Certs",   icon: "🔒" },
+  { to: "/cron",       label: "Cron Jobs",   icon: "⏰" },
+  { to: "/files",      label: "Dateien",     icon: "📂" },
 ];
 
 const ADMIN_NAV = [
-  { to: "/users",    label: "Benutzer",      icon: "👥" },
-  { to: "/settings", label: "Einstellungen", icon: "🔧" },
-  { to: "/logs",     label: "App-Logs",      icon: "📋" },
+  { to: "/notifications", label: "Benachrichtigungen", icon: "🔔" },
+  { to: "/users",         label: "Benutzer",           icon: "👥" },
+  { to: "/settings",      label: "Einstellungen",      icon: "🔧" },
+  { to: "/logs",          label: "App-Logs",           icon: "📋" },
 ];
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
   return (
-    <aside className="hidden md:flex flex-col w-56 min-h-screen bg-slate-800 border-r border-slate-700/50 px-3 py-4">
+    <aside className="hidden md:flex flex-col w-56 min-h-screen bg-slate-800 border-r border-slate-700/50 px-3 py-4 overflow-y-auto">
       <div className="flex items-center gap-2.5 px-2 mb-6">
         <Logo size={28} />
         <span className="text-indigo-400 text-xl font-bold">Server.IQ</span>

@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, Integer, String, func
+from sqlalchemy import Boolean, DateTime, Enum, Float, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -39,3 +39,48 @@ class MonitoredService(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
+
+class MetricSnapshot(Base):
+    __tablename__ = "metric_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+    cpu_percent: Mapped[float] = mapped_column(Float, nullable=False)
+    memory_percent: Mapped[float] = mapped_column(Float, nullable=False)
+    disk_percent: Mapped[float] = mapped_column(Float, nullable=False)
+    disk_read_bps: Mapped[float] = mapped_column(Float, default=0.0)
+    disk_write_bps: Mapped[float] = mapped_column(Float, default=0.0)
+    net_recv_bps: Mapped[float] = mapped_column(Float, default=0.0)
+    net_sent_bps: Mapped[float] = mapped_column(Float, default=0.0)
+
+
+class NotificationConfig(Base):
+    __tablename__ = "notification_config"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    telegram_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    telegram_bot_token: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    telegram_chat_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    email_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    email_smtp_host: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    email_smtp_port: Mapped[int] = mapped_column(Integer, default=587)
+    email_smtp_user: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    email_smtp_password: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    email_from: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    email_to: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    check_interval_minutes: Mapped[int] = mapped_column(Integer, default=5)
+    notify_on_failure: Mapped[bool] = mapped_column(Boolean, default=True)
+    notify_on_recovery: Mapped[bool] = mapped_column(Boolean, default=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ServiceAlertState(Base):
+    __tablename__ = "service_alert_states"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    is_down: Mapped[bool] = mapped_column(Boolean, default=False)
+    alerted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
