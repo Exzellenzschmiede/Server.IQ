@@ -13,15 +13,27 @@ import ServicesPage from "./pages/ServicesPage";
 import SetupPage from "./pages/SetupPage";
 import UsersPage from "./pages/UsersPage";
 
-function SetupGuard({ children }: { children: React.ReactNode }) {
+function useSetupRequired() {
   const [setupRequired, setSetupRequired] = useState<boolean | null>(null);
-
   useEffect(() => {
     checkSetup()
       .then((res) => setSetupRequired(res.setup_required))
       .catch(() => setSetupRequired(false));
   }, []);
+  return setupRequired;
+}
 
+function SetupPageGuard({ children }: { children: React.ReactNode }) {
+  const setupRequired = useSetupRequired();
+  if (setupRequired === null) {
+    return <div className="flex items-center justify-center h-screen"><Spinner size="lg" /></div>;
+  }
+  if (!setupRequired) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
+function SetupGuard({ children }: { children: React.ReactNode }) {
+  const setupRequired = useSetupRequired();
   if (setupRequired === null) {
     return <div className="flex items-center justify-center h-screen"><Spinner size="lg" /></div>;
   }
@@ -34,7 +46,7 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/setup" element={<SetupPage />} />
+          <Route path="/setup" element={<SetupPageGuard><SetupPage /></SetupPageGuard>} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/*" element={
             <SetupGuard>
