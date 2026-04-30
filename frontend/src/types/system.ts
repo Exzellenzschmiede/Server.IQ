@@ -57,3 +57,10 @@ export interface SystemInfo {
   uptime_seconds: number;
   boot_time: number;
 }
+
+export interface ServiceActionResponse {
+  success: boolean;
+  action: string;
+  service: string;
+  message: string;
+}

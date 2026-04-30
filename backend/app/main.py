@@ -13,6 +13,7 @@ from app.config import settings
 from app.console.router import router as console_router
 from app.database import AsyncSessionLocal, engine
 from app.docker_mgmt.router import router as docker_router
+from app.logs.router import router as logs_router
 from app.models import Base, MonitoredService
 from app.settings.router import router as settings_router
 from app.system.router import router as system_router
@@ -71,3 +72,4 @@ app.include_router(docker_router,   prefix="/api/v1/docker",   tags=["docker"])
 app.include_router(users_router,    prefix="/api/v1/users",    tags=["users"])
 app.include_router(settings_router, prefix="/api/v1/settings", tags=["settings"])
 app.include_router(console_router,  prefix="/api/v1/console",  tags=["console"])
+app.include_router(logs_router,     prefix="/api/v1/logs",     tags=["logs"])

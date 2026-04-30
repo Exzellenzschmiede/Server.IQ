@@ -12,6 +12,7 @@ const NAV = [
 const ADMIN_NAV = [
   { to: "/users",    label: "Benutzer",      icon: "👥" },
   { to: "/settings", label: "Einstellungen", icon: "🔧" },
+  { to: "/logs",     label: "App-Logs",      icon: "📋" },
 ];
 
 export default function Sidebar() {

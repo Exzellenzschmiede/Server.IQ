@@ -5,16 +5,19 @@ from app.dependencies import get_current_user
 from app.docker_mgmt.schemas import (
     ContainerActionResponse,
     ContainerInfo,
+    ContainerStats,
     ContainersResponse,
     ImageInfo,
     ReinstallResponse,
 )
 from app.docker_mgmt.service import (
     get_container,
+    get_container_stats,
     list_containers,
     list_images,
     reinstall_container,
     remove_container,
+    restart_container,
     start_container,
     stop_container,
     stream_logs,
@@ -60,9 +63,19 @@ async def remove(
     return await remove_container(container_id, force=force)
 
 
+@router.post("/containers/{container_id}/restart", response_model=ContainerActionResponse)
+async def restart(container_id: str, _: User = Depends(get_current_user)):
+    return await restart_container(container_id)
+
+
 @router.post("/containers/{container_id}/reinstall", response_model=ReinstallResponse)
 async def reinstall(container_id: str, _: User = Depends(get_current_user)):
     return await reinstall_container(container_id)
+
+
+@router.get("/containers/{container_id}/stats", response_model=ContainerStats)
+async def container_stats(container_id: str, _: User = Depends(get_current_user)):
+    return await get_container_stats(container_id)
 
 
 @router.get("/images", response_model=list[ImageInfo])

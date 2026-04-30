@@ -2,10 +2,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_admin
 from app.models import User
-from app.system.schemas import ServicesResponse, SystemInfo, SystemMetrics
-from app.system.service import get_all_metrics, get_services, get_system_info
+from app.system.schemas import ServiceActionRequest, ServiceActionResponse, ServicesResponse, SystemInfo, SystemMetrics
+from app.system.service import get_all_metrics, get_services, get_system_info, service_action
 
 router = APIRouter()
 
@@ -26,3 +26,13 @@ async def services(
 @router.get("/info", response_model=SystemInfo)
 async def info(_: User = Depends(get_current_user)):
     return get_system_info()
+
+
+@router.post("/services/{key}/action", response_model=ServiceActionResponse)
+async def action_service(
+    key: str,
+    body: ServiceActionRequest,
+    _: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    return await service_action(key, body.action, db)

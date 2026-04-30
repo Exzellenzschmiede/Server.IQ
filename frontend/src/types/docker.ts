@@ -9,12 +9,24 @@ export interface ContainerInfo {
   short_id: string;
   name: string;
   image: string;
-  status: string;
+  status: string;       // machine-readable: "running", "exited"
+  status_text: string;  // human-readable: "Up 2 hours"
   state: string;
   created: string;
   started_at: string | null;
   ports: ContainerPort[];
   labels: Record<string, string>;
+  volumes: string[];
+  networks: string[];
+  restart_policy: string | null;
+}
+
+export interface ContainerStats {
+  container_id: string;
+  cpu_percent: number;
+  memory_bytes: number;
+  memory_limit_bytes: number;
+  memory_percent: number;
 }
 
 export interface ContainersResponse {

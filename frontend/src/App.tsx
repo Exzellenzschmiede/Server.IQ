@@ -6,6 +6,7 @@ import ProtectedRoute from "./auth/ProtectedRoute";
 import RequireAdmin from "./auth/RequireAdmin";
 import AppShell from "./components/layout/AppShell";
 import Spinner from "./components/ui/Spinner";
+import AppLogsPage from "./pages/AppLogsPage";
 import ConsolePage from "./pages/ConsolePage";
 import ContainerLogsPage from "./pages/ContainerLogsPage";
 import ContainersPage from "./pages/ContainersPage";
@@ -63,6 +64,7 @@ export default function App() {
                     <Route path="console" element={<ConsolePage />} />
                     <Route path="users" element={<RequireAdmin><UsersPage /></RequireAdmin>} />
                     <Route path="settings" element={<RequireAdmin><SettingsPage /></RequireAdmin>} />
+                    <Route path="logs" element={<RequireAdmin><AppLogsPage /></RequireAdmin>} />
                   </Route>
                 </Routes>
               </ProtectedRoute>

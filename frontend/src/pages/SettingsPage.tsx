@@ -19,6 +19,7 @@ const EMPTY_FORM: ServiceConfigCreate = {
 export default function SettingsPage() {
   const [services, setServices] = useState<ServiceConfig[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [form, setForm] = useState<ServiceConfigCreate>(EMPTY_FORM);
   const [editId, setEditId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
@@ -27,8 +28,11 @@ export default function SettingsPage() {
   useEffect(() => { load(); }, []);
 
   async function load() {
+    setLoadError("");
     try {
       setServices(await getMonitoredServices());
+    } catch {
+      setLoadError("Services konnten nicht geladen werden.");
     } finally {
       setLoading(false);
     }
@@ -93,6 +97,8 @@ export default function SettingsPage() {
         <h2 className="text-sm font-semibold text-slate-300 mb-3">Überwachte Services</h2>
         {loading ? (
           <div className="flex justify-center py-4"><Spinner /></div>
+        ) : loadError ? (
+          <p className="text-sm text-red-400 py-2">{loadError}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

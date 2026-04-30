@@ -2,6 +2,7 @@ import client from "./client";
 import type {
   ContainerActionResponse,
   ContainerInfo,
+  ContainerStats,
   ContainersResponse,
   ImageInfo,
   ReinstallResponse,
@@ -48,6 +49,18 @@ export async function reinstallContainer(id: string): Promise<ReinstallResponse>
   const { data } = await client.post<ReinstallResponse>(
     `/docker/containers/${id}/reinstall`
   );
+  return data;
+}
+
+export async function restartContainer(id: string): Promise<ContainerActionResponse> {
+  const { data } = await client.post<ContainerActionResponse>(
+    `/docker/containers/${id}/restart`
+  );
+  return data;
+}
+
+export async function getContainerStats(id: string): Promise<ContainerStats> {
+  const { data } = await client.get<ContainerStats>(`/docker/containers/${id}/stats`);
   return data;
 }
 

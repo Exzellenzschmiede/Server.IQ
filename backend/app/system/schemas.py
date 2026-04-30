@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CpuMetrics(BaseModel):
@@ -59,3 +59,14 @@ class SystemInfo(BaseModel):
     kernel_version: str
     uptime_seconds: float
     boot_time: float
+
+
+class ServiceActionRequest(BaseModel):
+    action: Literal["start", "stop", "restart"]
+
+
+class ServiceActionResponse(BaseModel):
+    success: bool
+    action: str
+    service: str
+    message: str

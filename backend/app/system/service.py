@@ -1,8 +1,11 @@
 import platform
+import re
 import socket
+import subprocess
 import time
 
 import psutil
+from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -153,6 +156,39 @@ def get_system_info() -> SystemInfo:
         uptime_seconds=time.time() - boot,
         boot_time=boot,
     )
+
+
+_SERVICE_KEY_RE = re.compile(r"^[a-zA-Z0-9._@-]{1,64}$")
+
+
+async def service_action(key: str, action: str, db: AsyncSession) -> dict:
+    from app.models import MonitoredService
+
+    if not _SERVICE_KEY_RE.match(key):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid service key format")
+
+    svc = await db.scalar(select(MonitoredService).where(MonitoredService.key == key))
+    if svc is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service not in monitored list")
+
+    try:
+        result = subprocess.run(
+            ["sudo", "systemctl", action, key],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        output = (result.stdout + result.stderr).strip()
+        return {
+            "success": result.returncode == 0,
+            "action": action,
+            "service": key,
+            "message": output or ("OK" if result.returncode == 0 else f"Exit code {result.returncode}"),
+        }
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="Command timed out")
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
 
 
 def get_all_metrics() -> SystemMetrics:

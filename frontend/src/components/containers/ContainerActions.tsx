@@ -1,7 +1,8 @@
 import { useState } from "react";
 import {
-  removeContainer,
   reinstallContainer,
+  removeContainer,
+  restartContainer,
   startContainer,
   stopContainer,
 } from "../../api/docker";
@@ -14,7 +15,7 @@ interface Props {
   onViewLogs?: () => void;
 }
 
-type Action = "start" | "stop" | "remove" | "reinstall" | null;
+type Action = "start" | "stop" | "restart" | "remove" | "reinstall" | null;
 
 export default function ContainerActions({ container, onRefresh, onViewLogs }: Props) {
   const [pending, setPending] = useState<Action>(null);
@@ -54,6 +55,16 @@ export default function ContainerActions({ container, onRefresh, onViewLogs }: P
             onClick={() => run("start", () => startContainer(container.id))}
           >
             {pending === "start" ? <Spinner size="sm" /> : "Start"}
+          </button>
+        )}
+
+        {isRunning && (
+          <button
+            className="btn-ghost"
+            disabled={!!pending}
+            onClick={() => run("restart", () => restartContainer(container.id))}
+          >
+            {pending === "restart" ? <Spinner size="sm" /> : "Restart"}
           </button>
         )}
 

@@ -68,10 +68,14 @@ echo "✓ nginx config deployed"
 SUDOERS_FILE=/etc/sudoers.d/server-iq
 cat > "$SUDOERS_FILE" << 'EOF'
 deploy ALL=(ALL) NOPASSWD: \
-  /bin/systemctl restart server-iq, \
-  /bin/systemctl reload nginx, \
-  /usr/bin/systemctl restart server-iq, \
-  /usr/bin/systemctl reload nginx, \
+  /bin/systemctl start *, \
+  /bin/systemctl stop *, \
+  /bin/systemctl restart *, \
+  /bin/systemctl reload *, \
+  /usr/bin/systemctl start *, \
+  /usr/bin/systemctl stop *, \
+  /usr/bin/systemctl restart *, \
+  /usr/bin/systemctl reload *, \
   /usr/sbin/nginx -t, \
   /bin/nginx -t, \
   /bin/cp /opt/server-iq/nginx/server-iq.conf /etc/nginx/sites-available/server-iq.conf, \
