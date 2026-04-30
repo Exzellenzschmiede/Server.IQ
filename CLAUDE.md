@@ -8,6 +8,12 @@ Self-hosted VPS Admin Console als Progressive Web App (PWA). Läuft als Docker-C
 
 ## Workflow-Regel
 
+**Vor jeder Prompt-Ausführung den aktuellen Stand aus `main` pullen.**
+
+```bash
+git pull origin main
+```
+
 **Nach jedem abgeschlossenen Prompt einen Commit auf `main` pushen.**
 
 ```bash
