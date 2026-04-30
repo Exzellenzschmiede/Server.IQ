@@ -11,3 +11,8 @@ export async function readFile(path: string): Promise<FileContentResponse> {
   const { data } = await client.get<FileContentResponse>("/files/read", { params: { path } });
   return data;
 }
+
+export async function writeFile(path: string, content: string): Promise<FileContentResponse> {
+  const { data } = await client.post<FileContentResponse>("/files/write", { path, content });
+  return data;
+}

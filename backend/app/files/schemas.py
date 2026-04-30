@@ -12,10 +12,14 @@ class FileEntry(BaseModel):
 class FileListResponse(BaseModel):
     path: str
     entries: list[FileEntry]
-    allowed_roots: list[str]
 
 
 class FileContentResponse(BaseModel):
     path: str
     content: str
     truncated: bool
+
+
+class FileWriteRequest(BaseModel):
+    path: str
+    content: str

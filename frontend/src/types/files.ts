@@ -9,7 +9,6 @@ export interface FileEntry {
 export interface FileListResponse {
   path: string;
   entries: FileEntry[];
-  allowed_roots: string[];
 }
 
 export interface FileContentResponse {
