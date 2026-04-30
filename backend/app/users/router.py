@@ -55,12 +55,12 @@ async def create_user(
     _: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    existing = await db.scalar(select(User).where(User.email == body.email))
+    existing = await db.scalar(select(User).where(User.email == body.email.lower()))
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already in use")
     user = User(
         name=body.name,
-        email=body.email,
+        email=body.email.lower(),
         password_hash=hash_password(body.password),
         role=body.role,
     )
@@ -95,12 +95,12 @@ async def update_user(
     user = await db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    if body.email and body.email != user.email:
-        existing = await db.scalar(select(User).where(User.email == body.email))
+    if body.email and body.email.lower() != user.email:
+        existing = await db.scalar(select(User).where(User.email == body.email.lower()))
         if existing:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already in use")
     for field, value in body.model_dump(exclude_none=True).items():
-        setattr(user, field, value)
+        setattr(user, field, value.lower() if field == "email" else value)
     await db.commit()
     await db.refresh(user)
     return user

@@ -37,7 +37,7 @@ async def create_admin(body: SetupRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Setup already completed")
     user = User(
         name=body.name,
-        email=body.email,
+        email=body.email.lower(),
         password_hash=hash_password(body.password),
         role=UserRole.admin,
     )
@@ -51,7 +51,7 @@ async def create_admin(body: SetupRequest, db: AsyncSession = Depends(get_db)):
 
 @router.post("/login", response_model=TokenResponse)
 async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.email == body.email, User.is_active == True))
+    result = await db.execute(select(User).where(User.email == body.email.lower(), User.is_active == True))
     user = result.scalar_one_or_none()
     if user is None or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
