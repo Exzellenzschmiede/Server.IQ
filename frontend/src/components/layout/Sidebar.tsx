@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
+import Logo from "../ui/Logo";
 
 const NAV = [
   { to: "/", label: "Dashboard", icon: "⬛" },
@@ -11,7 +12,8 @@ export default function Sidebar() {
   const { user, logout } = useAuth();
   return (
     <aside className="hidden md:flex flex-col w-56 min-h-screen bg-slate-800 border-r border-slate-700/50 px-3 py-4">
-      <div className="flex items-center gap-2 px-2 mb-6">
+      <div className="flex items-center gap-2.5 px-2 mb-6">
+        <Logo size={28} />
         <span className="text-indigo-400 text-xl font-bold">Server.IQ</span>
       </div>
 
