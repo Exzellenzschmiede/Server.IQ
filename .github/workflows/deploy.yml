@@ -57,6 +57,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Upload nginx config
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "nginx/server-iq.conf"
+          target: "~/server-iq/"
+          strip_components: 1
+
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1
         with:
@@ -75,16 +85,13 @@ jobs:
             cd ~/server-iq
             docker compose up -d --remove-orphans
 
-            # Deploy nginx config (substituting port variables from .env)
-            source .env
+            # Deploy nginx config (substitute port variables from .env)
+            set -a; source .env; set +a
             sed "s/\${BACKEND_PORT}/${BACKEND_PORT}/g; s/\${FRONTEND_PORT}/${FRONTEND_PORT}/g" \
-              ~/server-iq/nginx/server-iq.conf \
-              > /etc/nginx/sites-available/server-iq.conf
-
-            # Enable site if not already linked
-            ln -sf /etc/nginx/sites-available/server-iq.conf /etc/nginx/sites-enabled/server-iq.conf
-
-            # Test config and reload
-            nginx -t && systemctl reload nginx
+              ~/server-iq/server-iq.conf \
+              > /tmp/server-iq-rendered.conf
+            sudo mv /tmp/server-iq-rendered.conf /etc/nginx/sites-available/server-iq.conf
+            sudo ln -sf /etc/nginx/sites-available/server-iq.conf /etc/nginx/sites-enabled/server-iq.conf
+            sudo nginx -t && sudo systemctl reload nginx
 
             echo "Deployment complete"
