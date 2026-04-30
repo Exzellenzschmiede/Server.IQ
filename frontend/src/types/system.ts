@@ -89,6 +89,40 @@ export interface ProcessInfo {
   username: string;
 }
 
+export interface ServiceDetail {
+  key: string;
+  description: string;
+  active_state: string;
+  sub_state: string;
+  load_state: string;
+  unit_file_state: string;
+  main_pid: number | null;
+  active_since: string | null;
+  memory_bytes: number | null;
+  cpu_usage_ms: number | null;
+  fragment_path: string | null;
+}
+
+export interface ServiceLogs {
+  key: string;
+  lines: string[];
+}
+
+export type HealthStatus = "ok" | "warning" | "critical";
+
+export interface HealthCheck {
+  name: string;
+  status: HealthStatus;
+  value: string;
+  detail: string;
+}
+
+export interface HealthReport {
+  overall: HealthStatus;
+  checks: HealthCheck[];
+  updates_available: number | null;
+}
+
 export interface MetricHistoryPoint {
   timestamp: number;
   cpu_percent: number;

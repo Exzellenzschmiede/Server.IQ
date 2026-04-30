@@ -5,17 +5,23 @@ from app.database import get_db
 from app.dependencies import get_current_user, require_admin
 from app.models import User
 from app.system.schemas import (
+    HealthReport,
     MetricHistoryPoint,
     ProcessInfo,
     ServiceActionRequest,
     ServiceActionResponse,
+    ServiceDetail,
+    ServiceLogs,
     ServicesResponse,
     SystemInfo,
     SystemMetrics,
 )
 from app.system.service import (
     get_all_metrics,
+    get_health,
     get_metrics_history,
+    get_service_detail,
+    get_service_logs,
     get_services,
     get_system_info,
     get_top_processes,
@@ -36,6 +42,20 @@ async def services(
     db: AsyncSession = Depends(get_db),
 ):
     return ServicesResponse(services=await get_services(db))
+
+
+@router.get("/services/{key}/detail", response_model=ServiceDetail)
+async def service_detail(key: str, _: User = Depends(get_current_user)):
+    return get_service_detail(key)
+
+
+@router.get("/services/{key}/logs", response_model=ServiceLogs)
+async def service_logs(
+    key: str,
+    lines: int = Query(100, ge=10, le=500),
+    _: User = Depends(get_current_user),
+):
+    return get_service_logs(key, lines)
 
 
 @router.get("/info", response_model=SystemInfo)
@@ -59,6 +79,11 @@ async def history(
     db: AsyncSession = Depends(get_db),
 ):
     return await get_metrics_history(db, hours=hours)
+
+
+@router.get("/health", response_model=HealthReport)
+async def health(_: User = Depends(get_current_user)):
+    return get_health()
 
 
 @router.post("/services/{key}/action", response_model=ServiceActionResponse)

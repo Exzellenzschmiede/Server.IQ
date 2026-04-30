@@ -13,11 +13,15 @@ from app.system.schemas import (
     CpuMetrics,
     DiskIO,
     DiskPartition,
+    HealthCheck,
+    HealthReport,
     LoadAverage,
     MemoryMetrics,
     MetricHistoryPoint,
     NetworkInterface,
     ProcessInfo,
+    ServiceDetail,
+    ServiceLogs,
     ServiceStatus,
     SystemInfo,
     SystemMetrics,
@@ -289,3 +293,158 @@ def get_all_metrics() -> SystemMetrics:
         tcp_connections=get_tcp_connections(),
         timestamp=time.time(),
     )
+
+
+def get_service_detail(key: str) -> ServiceDetail:
+    if not _SERVICE_KEY_RE.match(key):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid service key")
+    try:
+        r = subprocess.run(
+            ["systemctl", "show", key, "--no-pager"],
+            capture_output=True, text=True, timeout=10,
+        )
+        props: dict[str, str] = {}
+        for line in r.stdout.splitlines():
+            if "=" in line:
+                k, _, v = line.partition("=")
+                props[k.strip()] = v.strip()
+
+        def _int(val: str) -> int | None:
+            try:
+                n = int(val)
+                return n if n >= 0 else None
+            except (ValueError, TypeError):
+                return None
+
+        mem = _int(props.get("MemoryCurrent", ""))
+        cpu_ns = _int(props.get("CPUUsageNSec", ""))
+        pid = _int(props.get("MainPID", ""))
+        since_raw = props.get("ActiveEnterTimestamp", "")
+        since = since_raw if since_raw and since_raw != "n/a" else None
+
+        return ServiceDetail(
+            key=key,
+            description=props.get("Description", ""),
+            active_state=props.get("ActiveState", "unknown"),
+            sub_state=props.get("SubState", ""),
+            load_state=props.get("LoadState", ""),
+            unit_file_state=props.get("UnitFileState", ""),
+            main_pid=pid if pid else None,
+            active_since=since,
+            memory_bytes=mem if mem and mem < 2**63 else None,
+            cpu_usage_ms=cpu_ns // 1_000_000 if cpu_ns else None,
+            fragment_path=props.get("FragmentPath") or None,
+        )
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="Command timed out")
+
+
+def get_service_logs(key: str, lines: int = 100) -> ServiceLogs:
+    if not _SERVICE_KEY_RE.match(key):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid service key")
+    try:
+        r = subprocess.run(
+            ["journalctl", "-u", key, "-n", str(min(lines, 500)),
+             "--no-pager", "--output=short-precise"],
+            capture_output=True, text=True, timeout=15,
+        )
+        log_lines = [l for l in r.stdout.splitlines() if l.strip()]
+        return ServiceLogs(key=key, lines=log_lines)
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="Command timed out")
+
+
+def _apt_updates() -> int | None:
+    try:
+        r = subprocess.run(
+            ["apt", "list", "--upgradable"],
+            capture_output=True, text=True, timeout=15,
+        )
+        count = sum(1 for l in r.stdout.splitlines() if "/" in l and "upgradable" not in l.lower())
+        return count
+    except Exception:
+        return None
+
+
+def get_health() -> HealthReport:
+    checks: list[HealthCheck] = []
+
+    # Disk
+    for part in get_disk_metrics():
+        if part.percent >= 90:
+            s = "critical"
+        elif part.percent >= 80:
+            s = "warning"
+        else:
+            s = "ok"
+        checks.append(HealthCheck(
+            name=f"Disk {part.mountpoint}",
+            status=s,
+            value=f"{part.percent:.1f}%",
+            detail=f"{_fmt_bytes(part.free_bytes)} frei von {_fmt_bytes(part.total_bytes)}",
+        ))
+
+    # Memory
+    mem = get_memory_metrics()
+    if mem.percent >= 90:
+        ms = "critical"
+    elif mem.percent >= 80:
+        ms = "warning"
+    else:
+        ms = "ok"
+    checks.append(HealthCheck(
+        name="Arbeitsspeicher",
+        status=ms,
+        value=f"{mem.percent:.1f}%",
+        detail=f"{_fmt_bytes(mem.used_bytes)} / {_fmt_bytes(mem.total_bytes)}",
+    ))
+
+    # Load average
+    load = get_load_average()
+    cpu_count = psutil.cpu_count(logical=True) or 1
+    if load.load_1 >= cpu_count * 2:
+        ls = "critical"
+    elif load.load_1 >= cpu_count:
+        ls = "warning"
+    else:
+        ls = "ok"
+    checks.append(HealthCheck(
+        name="CPU Load (1 min)",
+        status=ls,
+        value=str(load.load_1),
+        detail=f"{cpu_count} CPU-Kerne",
+    ))
+
+    # Updates
+    updates = _apt_updates()
+    if updates is not None:
+        if updates >= 50:
+            us = "critical"
+        elif updates > 0:
+            us = "warning"
+        else:
+            us = "ok"
+        checks.append(HealthCheck(
+            name="System-Updates",
+            status=us,
+            value=f"{updates} ausstehend" if updates > 0 else "Aktuell",
+            detail="apt upgradable packages",
+        ))
+
+    # Overall
+    if any(c.status == "critical" for c in checks):
+        overall = "critical"
+    elif any(c.status == "warning" for c in checks):
+        overall = "warning"
+    else:
+        overall = "ok"
+
+    return HealthReport(overall=overall, checks=checks, updates_available=updates)
+
+
+def _fmt_bytes(b: int) -> str:
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if b < 1024:
+            return f"{b:.1f} {unit}"
+        b //= 1024
+    return f"{b} PB"

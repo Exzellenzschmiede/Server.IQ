@@ -1,8 +1,11 @@
 import client from "./client";
 import type {
+  HealthReport,
   MetricHistoryPoint,
   ProcessInfo,
   ServiceActionResponse,
+  ServiceDetail,
+  ServiceLogs,
   ServicesResponse,
   SystemInfo,
   SystemMetrics,
@@ -30,6 +33,21 @@ export async function getTopProcesses(sortBy: "cpu" | "memory" = "cpu", limit = 
 
 export async function getMetricsHistory(hours = 2): Promise<MetricHistoryPoint[]> {
   const { data } = await client.get<MetricHistoryPoint[]>(`/system/history?hours=${hours}`);
+  return data;
+}
+
+export async function getServiceDetail(key: string): Promise<ServiceDetail> {
+  const { data } = await client.get<ServiceDetail>(`/system/services/${key}/detail`);
+  return data;
+}
+
+export async function getServiceLogs(key: string, lines = 100): Promise<ServiceLogs> {
+  const { data } = await client.get<ServiceLogs>(`/system/services/${key}/logs?lines=${lines}`);
+  return data;
+}
+
+export async function getHealth(): Promise<HealthReport> {
+  const { data } = await client.get<HealthReport>("/system/health");
   return data;
 }
 

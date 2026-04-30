@@ -193,19 +193,22 @@ export default function NotificationsPage() {
             onChange={(v) => update("email_enabled", v)}
           />
         </div>
+        <p className="text-xs text-slate-500">
+          Lokales Postfix: Host <code className="text-slate-400">localhost</code>, Port <code className="text-slate-400">25</code>, Benutzername + Passwort leer lassen.
+        </p>
         <div className="grid grid-cols-2 gap-3">
           <Field
             label="SMTP Host"
             value={cfg.email_smtp_host ?? ""}
             onChange={(v) => update("email_smtp_host", v || null)}
-            placeholder="smtp.example.com"
+            placeholder="localhost"
           />
           <Field
             label="Port"
             value={cfg.email_smtp_port}
-            onChange={(v) => update("email_smtp_port", parseInt(v) || 587)}
+            onChange={(v) => update("email_smtp_port", parseInt(v) || 25)}
             type="number"
-            placeholder="587"
+            placeholder="25"
           />
           <Field
             label="Benutzername"

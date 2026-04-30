@@ -65,7 +65,7 @@ class NotificationConfig(Base):
     telegram_chat_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     email_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     email_smtp_host: Mapped[str | None] = mapped_column(String(256), nullable=True)
-    email_smtp_port: Mapped[int] = mapped_column(Integer, default=587)
+    email_smtp_port: Mapped[int] = mapped_column(Integer, default=25)
     email_smtp_user: Mapped[str | None] = mapped_column(String(256), nullable=True)
     email_smtp_password: Mapped[str | None] = mapped_column(String(256), nullable=True)
     email_from: Mapped[str | None] = mapped_column(String(256), nullable=True)

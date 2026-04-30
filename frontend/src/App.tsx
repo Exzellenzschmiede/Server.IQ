@@ -14,6 +14,7 @@ import CronPage from "./pages/CronPage";
 import DashboardPage from "./pages/DashboardPage";
 import FilesPage from "./pages/FilesPage";
 import FirewallPage from "./pages/FirewallPage";
+import HealthPage from "./pages/HealthPage";
 import LoginPage from "./pages/LoginPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import ServicesPage from "./pages/ServicesPage";
@@ -67,6 +68,7 @@ export default function App() {
                     <Route path="containers" element={<ContainersPage />} />
                     <Route path="containers/:id/logs" element={<ContainerLogsPage />} />
                     <Route path="console" element={<ConsolePage />} />
+                    <Route path="health" element={<HealthPage />} />
                     <Route path="firewall" element={<FirewallPage />} />
                     <Route path="ssl" element={<SslPage />} />
                     <Route path="cron" element={<CronPage />} />

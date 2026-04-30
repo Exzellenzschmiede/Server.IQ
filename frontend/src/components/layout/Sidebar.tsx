@@ -4,6 +4,7 @@ import Logo from "../ui/Logo";
 
 const NAV = [
   { to: "/",           label: "Dashboard",   icon: "▣" },
+  { to: "/health",     label: "Health",      icon: "🩺" },
   { to: "/services",   label: "Services",    icon: "⚡" },
   { to: "/containers", label: "Container",   icon: "🐳" },
   { to: "/console",    label: "Konsole",     icon: ">_" },

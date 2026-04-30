@@ -86,6 +86,25 @@ class ServiceActionResponse(BaseModel):
     message: str
 
 
+class ServiceDetail(BaseModel):
+    key: str
+    description: str
+    active_state: str
+    sub_state: str
+    load_state: str
+    unit_file_state: str
+    main_pid: int | None
+    active_since: str | None
+    memory_bytes: int | None
+    cpu_usage_ms: int | None
+    fragment_path: str | None
+
+
+class ServiceLogs(BaseModel):
+    key: str
+    lines: list[str]
+
+
 class ProcessInfo(BaseModel):
     pid: int
     name: str
@@ -105,3 +124,19 @@ class MetricHistoryPoint(BaseModel):
     disk_write_bps: float
     net_recv_bps: float
     net_sent_bps: float
+
+
+HealthStatus = Literal["ok", "warning", "critical"]
+
+
+class HealthCheck(BaseModel):
+    name: str
+    status: HealthStatus
+    value: str
+    detail: str = ""
+
+
+class HealthReport(BaseModel):
+    overall: HealthStatus
+    checks: list[HealthCheck]
+    updates_available: int | None = None
