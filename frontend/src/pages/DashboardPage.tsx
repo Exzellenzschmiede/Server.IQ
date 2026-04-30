@@ -39,13 +39,6 @@ function formatTime(ts: number): string {
   return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  active: "text-emerald-400",
-  inactive: "text-yellow-400",
-  failed: "text-red-400",
-  unknown: "text-slate-400",
-};
-
 export default function DashboardPage() {
   const { data, error } = useMetrics(5000);
   const [info, setInfo] = useState<SystemInfo | null>(null);
