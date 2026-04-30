@@ -1,8 +1,9 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 
 class SetupRequest(BaseModel):
-    username: str = Field(min_length=3, max_length=64)
+    name: str = Field(min_length=2, max_length=128)
+    email: EmailStr
     password: str = Field(min_length=8)
 
 
@@ -11,7 +12,7 @@ class SetupStatusResponse(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    username: str
+    email: EmailStr
     password: str
 
 
@@ -26,5 +27,8 @@ class RefreshRequest(BaseModel):
 
 
 class UserInfo(BaseModel):
-    username: str
+    id: int
+    name: str
+    email: str
+    role: str
     is_admin: bool

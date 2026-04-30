@@ -7,26 +7,22 @@ export async function checkSetup(): Promise<{ setup_required: boolean }> {
 }
 
 export async function createAdmin(
-  username: string,
+  name: string,
+  email: string,
   password: string
 ): Promise<TokenResponse> {
-  const { data } = await axios.post("/api/v1/auth/setup", { username, password });
+  const { data } = await axios.post("/api/v1/auth/setup", { name, email, password });
   return data;
 }
 
-export async function login(
-  username: string,
-  password: string
-): Promise<TokenResponse> {
-  const { data } = await axios.post("/api/v1/auth/login", { username, password });
+export async function login(email: string, password: string): Promise<TokenResponse> {
+  const { data } = await axios.post("/api/v1/auth/login", { email, password });
   return data;
 }
 
 export async function getMe(): Promise<UserInfo> {
   const { data } = await axios.get("/api/v1/auth/me", {
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-    },
+    headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
   });
   return data;
 }

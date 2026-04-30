@@ -12,6 +12,7 @@ from app.database import engine
 from app.docker_mgmt.router import router as docker_router
 from app.models import Base
 from app.system.router import router as system_router
+from app.users.router import router as users_router
 
 
 @asynccontextmanager
@@ -38,3 +39,4 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(system_router, prefix="/api/v1/system", tags=["system"])
 app.include_router(docker_router, prefix="/api/v1/docker", tags=["docker"])
+app.include_router(users_router, prefix="/api/v1/users", tags=["users"])

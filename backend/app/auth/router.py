@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,7 +19,7 @@ from app.auth.service import (
 )
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models import User
+from app.models import User, UserRole
 
 router = APIRouter()
 
@@ -34,31 +34,30 @@ async def setup_status(db: AsyncSession = Depends(get_db)):
 async def create_admin(body: SetupRequest, db: AsyncSession = Depends(get_db)):
     count = await db.scalar(select(func.count()).select_from(User))
     if count > 0:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Setup already completed",
-        )
-    user = User(username=body.username, password_hash=hash_password(body.password))
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Setup already completed")
+    user = User(
+        name=body.name,
+        email=body.email,
+        password_hash=hash_password(body.password),
+        role=UserRole.admin,
+    )
     db.add(user)
     await db.commit()
     return TokenResponse(
-        access_token=create_access_token(user.username),
-        refresh_token=create_refresh_token(user.username),
+        access_token=create_access_token(user.email),
+        refresh_token=create_refresh_token(user.email),
     )
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.username == body.username))
+async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == body.email, User.is_active == True))
     user = result.scalar_one_or_none()
     if user is None or not verify_password(body.password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials",
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     return TokenResponse(
-        access_token=create_access_token(user.username),
-        refresh_token=create_refresh_token(user.username),
+        access_token=create_access_token(user.email),
+        refresh_token=create_refresh_token(user.email),
     )
 
 
@@ -66,21 +65,24 @@ async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends
 async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
     payload = decode_token(body.refresh_token)
     if payload is None or payload.get("type") != "refresh":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token",
-        )
-    username: str = payload.get("sub")
-    result = await db.execute(select(User).where(User.username == username))
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+    email: str = payload.get("sub")
+    result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     return TokenResponse(
-        access_token=create_access_token(user.username),
-        refresh_token=create_refresh_token(user.username),
+        access_token=create_access_token(user.email),
+        refresh_token=create_refresh_token(user.email),
     )
 
 
 @router.get("/me", response_model=UserInfo)
 async def me(current_user: User = Depends(get_current_user)):
-    return UserInfo(username=current_user.username, is_admin=current_user.is_admin)
+    return UserInfo(
+        id=current_user.id,
+        name=current_user.name,
+        email=current_user.email,
+        role=current_user.role.value,
+        is_admin=current_user.role == UserRole.admin,
+    )

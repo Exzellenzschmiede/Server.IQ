@@ -4,7 +4,21 @@ export interface TokenResponse {
   token_type: string;
 }
 
+export type UserRole = "admin" | "user";
+
 export interface UserInfo {
-  username: string;
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
   is_admin: boolean;
+}
+
+export interface UserResponse {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  is_active: boolean;
+  created_at: string;
 }

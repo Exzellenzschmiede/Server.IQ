@@ -1,10 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { login as apiLogin, getMe } from "../api/auth";
 import type { UserInfo } from "../types/auth";
@@ -13,7 +7,7 @@ interface AuthContextValue {
   user: UserInfo | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -25,10 +19,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
-    if (!token) {
-      setIsLoading(false);
-      return;
-    }
+    if (!token) { setIsLoading(false); return; }
     getMe()
       .then(setUser)
       .catch(() => {
@@ -38,12 +29,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const login = useCallback(async (username: string, password: string) => {
-    const tokens = await apiLogin(username, password);
+  const login = useCallback(async (email: string, password: string) => {
+    const tokens = await apiLogin(email, password);
     localStorage.setItem("access_token", tokens.access_token);
     localStorage.setItem("refresh_token", tokens.refresh_token);
-    const me = await getMe();
-    setUser(me);
+    setUser(await getMe());
   }, []);
 
   const logout = useCallback(() => {
@@ -53,9 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider
-      value={{ user, isAuthenticated: !!user, isLoading, login, logout }}
-    >
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

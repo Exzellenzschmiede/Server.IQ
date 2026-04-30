@@ -4,7 +4,7 @@ import { useAuth } from "../auth/AuthContext";
 import Spinner from "../components/ui/Spinner";
 
 export default function LoginPage() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,10 +16,10 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      await login(username, password);
+      await login(email, password);
       navigate("/", { replace: true });
     } catch {
-      setError("Invalid username or password");
+      setError("E-Mail oder Passwort ungültig");
     } finally {
       setLoading(false);
     }
@@ -35,31 +35,22 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Username</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              autoFocus
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
-            />
+            <label className="block text-xs text-slate-400 mb-1">E-Mail</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+              required autoFocus
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+            <label className="block text-xs text-slate-400 mb-1">Passwort</label>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
-            />
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
           </div>
 
           {error && <p className="text-xs text-red-400">{error}</p>}
 
           <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-2">
-            {loading ? <Spinner size="sm" /> : "Login"}
+            {loading ? <Spinner size="sm" /> : "Anmelden"}
           </button>
         </form>
       </div>
