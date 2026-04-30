@@ -42,10 +42,12 @@ jobs:
             git pull origin main
             git remote set-url origin "https://github.com/exzellenzschmiede/server.iq.git"
 
-            # ── Backend: install deps + restart service ─────────────────────
+            # ── Backend: install deps + reload service unit + restart ───────
             cd /opt/server-iq/backend
             .venv/bin/pip install -q --upgrade pip
             .venv/bin/pip install -q -r requirements.txt
+            sudo cp /opt/server-iq/server-iq.service /etc/systemd/system/server-iq.service
+            sudo systemctl daemon-reload
             sudo systemctl restart server-iq
 
             # ── Frontend: build ─────────────────────────────────────────────

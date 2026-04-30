@@ -80,6 +80,10 @@ deploy ALL=(ALL) NOPASSWD: \
   /bin/nginx -t, \
   /bin/cp /opt/server-iq/nginx/server-iq.conf /etc/nginx/sites-available/server-iq.conf, \
   /bin/ln -sf /etc/nginx/sites-available/server-iq.conf /etc/nginx/sites-enabled/server-iq.conf, \
+  /bin/cp /opt/server-iq/server-iq.service /etc/systemd/system/server-iq.service, \
+  /usr/bin/cp /opt/server-iq/server-iq.service /etc/systemd/system/server-iq.service, \
+  /bin/systemctl daemon-reload, \
+  /usr/bin/systemctl daemon-reload, \
   /usr/sbin/ufw status numbered, \
   /usr/sbin/ufw --force enable, \
   /usr/sbin/ufw --force disable, \

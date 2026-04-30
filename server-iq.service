@@ -5,8 +5,8 @@ After=network.target postgresql.service
 
 [Service]
 Type=simple
-User=deploy
-Group=deploy
+User=root
+Group=root
 WorkingDirectory=/opt/server-iq/backend
 EnvironmentFile=/opt/server-iq/.env
 ExecStart=/opt/server-iq/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8100
