@@ -67,6 +67,15 @@ jobs:
           echo "BACKEND_IMAGE=ghcr.io/${OWNER}/server.iq-backend" >> $GITHUB_ENV
           echo "FRONTEND_IMAGE=ghcr.io/${OWNER}/server.iq-frontend" >> $GITHUB_ENV
 
+      - name: Upload docker-compose.yml
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "docker-compose.yml"
+          target: "~/server-iq/"
+
       - name: Upload nginx config
         uses: appleboy/scp-action@v0.1.7
         with:
