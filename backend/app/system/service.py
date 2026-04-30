@@ -1,7 +1,6 @@
 import platform
-import subprocess
+import socket
 import time
-from typing import Literal
 
 import psutil
 
@@ -19,11 +18,13 @@ from app.system.schemas import (
 _prev_net: dict = {}
 _prev_net_time: float = 0.0
 
+# Services to monitor: (key, display_name, host, port)
+# host.docker.internal resolves to the Docker host gateway
 MONITORED_SERVICES = [
-    ("nginx", "NGINX"),
-    ("postgresql", "PostgreSQL"),
-    ("docker", "Docker"),
-    ("ssh", "SSH"),
+    ("nginx",      "NGINX",      "host.docker.internal", 80),
+    ("postgresql", "PostgreSQL", "host.docker.internal", 5432),
+    ("ssh",        "SSH",        "host.docker.internal", 22),
+    ("docker",     "Docker",     None,                   None),  # checked via socket file
 ]
 
 
@@ -97,28 +98,40 @@ def get_network_metrics() -> list[NetworkInterface]:
     return result
 
 
-def _check_service(name: str) -> Literal["active", "inactive", "failed", "unknown"]:
+def _check_tcp(host: str, port: int, timeout: float = 2.0) -> bool:
     try:
-        result = subprocess.run(
-            ["systemctl", "is-active", name],
-            capture_output=True,
-            text=True,
-            timeout=3,
-        )
-        state = result.stdout.strip()
-        if state == "active":
-            return "active"
-        if state == "failed":
-            return "failed"
-        return "inactive"
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        return "unknown"
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except (socket.timeout, ConnectionRefusedError, OSError):
+        return False
+
+
+def _check_docker_socket() -> bool:
+    try:
+        import docker
+        client = docker.from_env()
+        client.ping()
+        return True
+    except Exception:
+        return False
+
+
+def _check_service(key: str, host: str | None, port: int | None) -> str:
+    if key == "docker":
+        return "active" if _check_docker_socket() else "failed"
+    if host and port:
+        return "active" if _check_tcp(host, port) else "inactive"
+    return "unknown"
 
 
 def get_services() -> list[ServiceStatus]:
     return [
-        ServiceStatus(name=name, display_name=display, status=_check_service(name))
-        for name, display in MONITORED_SERVICES
+        ServiceStatus(
+            name=key,
+            display_name=display,
+            status=_check_service(key, host, port),
+        )
+        for key, display, host, port in MONITORED_SERVICES
     ]
 
 
