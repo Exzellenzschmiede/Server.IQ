@@ -3,6 +3,8 @@ import socket
 import time
 
 import psutil
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.system.schemas import (
     CpuMetrics,
@@ -18,13 +20,12 @@ from app.system.schemas import (
 _prev_net: dict = {}
 _prev_net_time: float = 0.0
 
-# Services to monitor: (key, display_name, host, port)
-# host.docker.internal resolves to the Docker host gateway
-MONITORED_SERVICES = [
+# Fallback used when the DB table is empty
+_DEFAULT_SERVICES = [
     ("nginx",      "NGINX",      "host.docker.internal", 80),
     ("postgresql", "PostgreSQL", "host.docker.internal", 5432),
     ("ssh",        "SSH",        "host.docker.internal", 22),
-    ("docker",     "Docker",     None,                   None),  # checked via Unix socket
+    ("docker",     "Docker",     None,                   None),
 ]
 
 
@@ -128,14 +129,18 @@ def _check_service(key: str, host: str | None, port: int | None) -> str:
     return "unknown"
 
 
-def get_services() -> list[ServiceStatus]:
+async def get_services(db: AsyncSession) -> list[ServiceStatus]:
+    from app.models import MonitoredService
+    result = await db.execute(
+        select(MonitoredService)
+        .where(MonitoredService.enabled == True)
+        .order_by(MonitoredService.id)
+    )
+    rows = result.scalars().all()
+    services = [(s.key, s.display_name, s.host, s.port) for s in rows] or _DEFAULT_SERVICES
     return [
-        ServiceStatus(
-            name=key,
-            display_name=display,
-            status=_check_service(key, host, port),
-        )
-        for key, display, host, port in MONITORED_SERVICES
+        ServiceStatus(name=key, display_name=display, status=_check_service(key, host, port))
+        for key, display, host, port in services
     ]
 
 

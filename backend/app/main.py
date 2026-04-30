@@ -5,20 +5,38 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.router import router as auth_router
 from app.config import settings
-from app.database import engine
+from app.console.router import router as console_router
+from app.database import AsyncSessionLocal, engine
 from app.docker_mgmt.router import router as docker_router
-from app.models import Base
+from app.models import Base, MonitoredService
+from app.settings.router import router as settings_router
 from app.system.router import router as system_router
 from app.users.router import router as users_router
+
+
+async def _seed_default_services(db: AsyncSession) -> None:
+    count = await db.scalar(select(func.count()).select_from(MonitoredService))
+    if count == 0:
+        db.add_all([
+            MonitoredService(key="nginx",      display_name="NGINX",      host="host.docker.internal", port=80),
+            MonitoredService(key="postgresql", display_name="PostgreSQL", host="host.docker.internal", port=5432),
+            MonitoredService(key="ssh",        display_name="SSH",        host="host.docker.internal", port=22),
+            MonitoredService(key="docker",     display_name="Docker",     host=None,                   port=None),
+        ])
+        await db.commit()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    async with AsyncSessionLocal() as db:
+        await _seed_default_services(db)
     yield
 
 
@@ -36,7 +54,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
-app.include_router(system_router, prefix="/api/v1/system", tags=["system"])
-app.include_router(docker_router, prefix="/api/v1/docker", tags=["docker"])
-app.include_router(users_router, prefix="/api/v1/users", tags=["users"])
+app.include_router(auth_router,     prefix="/api/v1/auth",     tags=["auth"])
+app.include_router(system_router,   prefix="/api/v1/system",   tags=["system"])
+app.include_router(docker_router,   prefix="/api/v1/docker",   tags=["docker"])
+app.include_router(users_router,    prefix="/api/v1/users",    tags=["users"])
+app.include_router(settings_router, prefix="/api/v1/settings", tags=["settings"])
+app.include_router(console_router,  prefix="/api/v1/console",  tags=["console"])

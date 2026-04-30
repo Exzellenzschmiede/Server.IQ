@@ -3,9 +3,15 @@ import { useAuth } from "../../auth/AuthContext";
 import Logo from "../ui/Logo";
 
 const NAV = [
-  { to: "/", label: "Dashboard", icon: "⬛" },
-  { to: "/services", label: "Services", icon: "⚙️" },
-  { to: "/containers", label: "Containers", icon: "🐳" },
+  { to: "/",          label: "Dashboard",  icon: "▣" },
+  { to: "/services",  label: "Services",   icon: "⚡" },
+  { to: "/containers",label: "Container",  icon: "🐳" },
+  { to: "/console",   label: "Konsole",    icon: ">_" },
+];
+
+const ADMIN_NAV = [
+  { to: "/users",    label: "Benutzer",      icon: "👥" },
+  { to: "/settings", label: "Einstellungen", icon: "🔧" },
 ];
 
 export default function Sidebar() {
@@ -26,19 +32,28 @@ export default function Sidebar() {
               }`
             }
           >
-            <span>{icon}</span>{label}
+            <span className={icon === ">_" ? "font-mono text-xs font-bold" : ""}>{icon}</span>
+            {label}
           </NavLink>
         ))}
+
         {user?.is_admin && (
-          <NavLink to="/users"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                isActive ? "bg-indigo-600/20 text-indigo-300" : "text-slate-400 hover:bg-slate-700/50 hover:text-slate-200"
-              }`
-            }
-          >
-            <span>👥</span>Benutzer
-          </NavLink>
+          <>
+            <div className="mt-3 mb-1 px-3">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-600">Admin</span>
+            </div>
+            {ADMIN_NAV.map(({ to, label, icon }) => (
+              <NavLink key={to} to={to}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                    isActive ? "bg-indigo-600/20 text-indigo-300" : "text-slate-400 hover:bg-slate-700/50 hover:text-slate-200"
+                  }`
+                }
+              >
+                <span>{icon}</span>{label}
+              </NavLink>
+            ))}
+          </>
         )}
       </nav>
 
