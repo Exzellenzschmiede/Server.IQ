@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.router import router as auth_router
@@ -23,12 +23,22 @@ async def _seed_default_services(db: AsyncSession) -> None:
     count = await db.scalar(select(func.count()).select_from(MonitoredService))
     if count == 0:
         db.add_all([
-            MonitoredService(key="nginx",      display_name="NGINX",      host="host.docker.internal", port=80),
-            MonitoredService(key="postgresql", display_name="PostgreSQL", host="host.docker.internal", port=5432),
-            MonitoredService(key="ssh",        display_name="SSH",        host="host.docker.internal", port=22),
-            MonitoredService(key="docker",     display_name="Docker",     host=None,                   port=None),
+            MonitoredService(key="nginx",      display_name="NGINX",      host="127.0.0.1", port=80),
+            MonitoredService(key="postgresql", display_name="PostgreSQL", host="127.0.0.1", port=5432),
+            MonitoredService(key="ssh",        display_name="SSH",        host="127.0.0.1", port=22),
+            MonitoredService(key="docker",     display_name="Docker",     host=None,        port=None),
         ])
         await db.commit()
+
+
+async def _migrate_service_hosts(db: AsyncSession) -> None:
+    """Migrate Docker-era host.docker.internal → 127.0.0.1 for bare-metal deployment."""
+    await db.execute(
+        update(MonitoredService)
+        .where(MonitoredService.host == "host.docker.internal")
+        .values(host="127.0.0.1")
+    )
+    await db.commit()
 
 
 @asynccontextmanager
@@ -37,6 +47,7 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
     async with AsyncSessionLocal() as db:
         await _seed_default_services(db)
+        await _migrate_service_hosts(db)
     yield
 
 

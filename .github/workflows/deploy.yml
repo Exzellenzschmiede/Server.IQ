@@ -1,116 +1,51 @@
-name: Build & Deploy
+name: Deploy
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
-env:
-  REGISTRY: ghcr.io
-
 jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set image names (lowercase owner)
-        run: |
-          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          echo "BACKEND_IMAGE=ghcr.io/${OWNER}/server.iq-backend" >> $GITHUB_ENV
-          echo "FRONTEND_IMAGE=ghcr.io/${OWNER}/server.iq-frontend" >> $GITHUB_ENV
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build & push backend
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          push: true
-          tags: ${{ env.BACKEND_IMAGE }}:latest,${{ env.BACKEND_IMAGE }}:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build & push frontend
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend
-          push: true
-          tags: ${{ env.FRONTEND_IMAGE }}:latest,${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
   deploy:
-    needs: build-and-push
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set image names (lowercase owner)
-        run: |
-          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          echo "BACKEND_IMAGE=ghcr.io/${OWNER}/server.iq-backend" >> $GITHUB_ENV
-          echo "FRONTEND_IMAGE=ghcr.io/${OWNER}/server.iq-frontend" >> $GITHUB_ENV
-
-      - name: Upload docker-compose.yml
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          source: "docker-compose.yml"
-          target: "~/server-iq/"
-
-      - name: Upload nginx config
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          source: "nginx/server-iq.conf"
-          target: "~/server-iq/"
-          strip_components: 1
-
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 15m
           script: |
             set -e
 
-            # Pull latest images
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker pull ${{ env.BACKEND_IMAGE }}:latest
-            docker pull ${{ env.FRONTEND_IMAGE }}:latest
+            # ── One-time: remove old Docker containers if still running ─────
+            docker ps -a --filter "name=server-iq" --format "{{.ID}}" \
+              | xargs -r docker rm -f 2>/dev/null || true
+            docker images --filter "reference=ghcr.io/exzellenzschmiede/server.iq*" \
+              --format "{{.ID}}" | xargs -r docker rmi -f 2>/dev/null || true
 
-            # Restart containers
-            cd ~/server-iq
-            docker compose up -d --remove-orphans
+            # ── Pull latest code ────────────────────────────────────────────
+            cd /opt/server-iq
+            git pull origin main
 
-            # Deploy nginx config (substitute port variables from .env)
-            set -a; source .env; set +a
-            sed "s/\${BACKEND_PORT}/${BACKEND_PORT}/g; s/\${FRONTEND_PORT}/${FRONTEND_PORT}/g" \
-              ~/server-iq/server-iq.conf \
-              > /tmp/server-iq-rendered.conf
-            sudo mv /tmp/server-iq-rendered.conf /etc/nginx/sites-available/server-iq.conf
-            sudo ln -sf /etc/nginx/sites-available/server-iq.conf /etc/nginx/sites-enabled/server-iq.conf
+            # ── Backend: install deps + restart service ─────────────────────
+            cd /opt/server-iq/backend
+            .venv/bin/pip install -q --upgrade pip
+            .venv/bin/pip install -q -r requirements.txt
+            sudo systemctl restart server-iq
+
+            # ── Frontend: build ─────────────────────────────────────────────
+            cd /opt/server-iq/frontend
+            npm ci --silent
+            npm run build
+
+            # ── nginx: deploy config + reload ───────────────────────────────
+            sudo cp /opt/server-iq/nginx/server-iq.conf \
+              /etc/nginx/sites-available/server-iq.conf
+            sudo ln -sf /etc/nginx/sites-available/server-iq.conf \
+              /etc/nginx/sites-enabled/server-iq.conf
             sudo nginx -t && sudo systemctl reload nginx
 
             echo "Deployment complete"

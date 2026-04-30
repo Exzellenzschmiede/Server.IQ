@@ -1,0 +1,20 @@
+[Unit]
+Description=Server.IQ Backend
+Documentation=https://github.com/exzellenzschmiede/server.iq
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=deploy
+Group=deploy
+WorkingDirectory=/opt/server-iq/backend
+EnvironmentFile=/opt/server-iq/.env
+ExecStart=/opt/server-iq/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8100
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=server-iq
+
+[Install]
+WantedBy=multi-user.target

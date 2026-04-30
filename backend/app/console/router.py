@@ -1,14 +1,30 @@
 import asyncio
-import base64
+import fcntl
 import json
+import os
+import pty
+import struct
+import termios
 
-import asyncssh
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect, status
 
 from app.auth.service import decode_token
-from app.config import settings
 
 router = APIRouter()
+
+
+def _read_pty(fd: int) -> bytes | None:
+    try:
+        return os.read(fd, 4096)
+    except OSError:
+        return None
+
+
+def _set_winsize(fd: int, rows: int, cols: int) -> None:
+    try:
+        fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
+    except Exception:
+        pass
 
 
 @router.websocket("/ws")
@@ -20,51 +36,33 @@ async def console_ws(ws: WebSocket, token: str = Query(...)):
 
     await ws.accept()
 
-    if not settings.console_ssh_key_b64:
-        await ws.send_bytes(
-            b"\r\n\x1b[31mKonsole nicht konfiguriert.\x1b[0m\r\n"
-            b"Bitte \x1b[33mCONSOLE_SSH_KEY_B64\x1b[0m in der .env setzen:\r\n"
-            b"  base64 -w0 ~/.ssh/id_ed25519\r\n"
-        )
-        await ws.close()
-        return
+    master_fd, slave_fd = pty.openpty()
+    _set_winsize(slave_fd, 24, 80)
 
-    try:
-        private_key = asyncssh.import_private_key(
-            base64.b64decode(settings.console_ssh_key_b64)
-        )
-        conn = await asyncssh.connect(
-            host=settings.console_ssh_host,
-            port=settings.console_ssh_port,
-            username=settings.console_ssh_user,
-            client_keys=[private_key],
-            known_hosts=None,
-            encoding=None,
-        )
-    except Exception as exc:
-        await ws.send_bytes(f"\r\n\x1b[31mSSH-Verbindungsfehler: {exc}\x1b[0m\r\n".encode())
-        await ws.close()
-        return
+    proc = await asyncio.create_subprocess_exec(
+        "/bin/bash",
+        "--login",
+        stdin=slave_fd,
+        stdout=slave_fd,
+        stderr=slave_fd,
+        env={**os.environ, "TERM": "xterm-256color", "LANG": "en_US.UTF-8"},
+        close_fds=True,
+    )
+    os.close(slave_fd)
 
-    try:
-        process = await conn.create_process(term_type="xterm-256color", term_size=(80, 24))
-    except Exception as exc:
-        await ws.send_bytes(f"\r\n\x1b[31mShell-Fehler: {exc}\x1b[0m\r\n".encode())
-        conn.close()
-        await ws.close()
-        return
+    loop = asyncio.get_event_loop()
 
-    async def ssh_to_ws() -> None:
-        try:
-            while True:
-                data = await process.stdout.read(4096)
-                if not data:
-                    break
-                await ws.send_bytes(data if isinstance(data, bytes) else data.encode())
-        except Exception:
-            pass
+    async def pty_to_ws() -> None:
+        while True:
+            data = await loop.run_in_executor(None, _read_pty, master_fd)
+            if data is None:
+                break
+            try:
+                await ws.send_bytes(data)
+            except Exception:
+                break
 
-    async def ws_to_ssh() -> None:
+    async def ws_to_pty() -> None:
         while True:
             try:
                 msg = await ws.receive()
@@ -74,31 +72,34 @@ async def console_ws(ws: WebSocket, token: str = Query(...)):
                     try:
                         event = json.loads(msg["text"])
                         if event.get("type") == "resize":
-                            process.change_terminal_size(
-                                int(event.get("cols", 80)),
+                            _set_winsize(
+                                master_fd,
                                 int(event.get("rows", 24)),
+                                int(event.get("cols", 80)),
                             )
                     except (json.JSONDecodeError, ValueError):
                         pass
                 elif msg.get("bytes"):
-                    process.stdin.write(msg["bytes"])
+                    os.write(master_fd, msg["bytes"])
             except (WebSocketDisconnect, Exception):
                 break
 
-    ssh_task = asyncio.create_task(ssh_to_ws())
-    ws_task = asyncio.create_task(ws_to_ssh())
+    pty_task = asyncio.create_task(pty_to_ws())
+    ws_task = asyncio.create_task(ws_to_pty())
 
-    await asyncio.wait([ssh_task, ws_task], return_when=asyncio.FIRST_COMPLETED)
+    await asyncio.wait([pty_task, ws_task], return_when=asyncio.FIRST_COMPLETED)
 
-    ssh_task.cancel()
+    try:
+        os.close(master_fd)
+    except Exception:
+        pass
+
+    pty_task.cancel()
     ws_task.cancel()
 
     try:
-        process.close()
-    except Exception:
-        pass
-    try:
-        conn.close()
+        proc.kill()
+        await proc.wait()
     except Exception:
         pass
     try:

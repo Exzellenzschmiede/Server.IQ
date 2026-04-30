@@ -20,12 +20,12 @@ from app.system.schemas import (
 _prev_net: dict = {}
 _prev_net_time: float = 0.0
 
-# Fallback used when the DB table is empty
+# Fallback used when the DB table is empty (bare-metal: use localhost)
 _DEFAULT_SERVICES = [
-    ("nginx",      "NGINX",      "host.docker.internal", 80),
-    ("postgresql", "PostgreSQL", "host.docker.internal", 5432),
-    ("ssh",        "SSH",        "host.docker.internal", 22),
-    ("docker",     "Docker",     None,                   None),
+    ("nginx",      "NGINX",      "127.0.0.1", 80),
+    ("postgresql", "PostgreSQL", "127.0.0.1", 5432),
+    ("ssh",        "SSH",        "127.0.0.1", 22),
+    ("docker",     "Docker",     None,         None),
 ]
 
 
