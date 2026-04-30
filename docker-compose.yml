@@ -2,6 +2,7 @@ services:
   backend:
     image: ghcr.io/exzellenzschmiede/server.iq-backend:latest
     restart: unless-stopped
+    user: "0:0"
     env_file: .env
     ports:
       - "${BACKEND_PORT:-8100}:8000"
