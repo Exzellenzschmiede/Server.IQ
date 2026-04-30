@@ -96,7 +96,9 @@ export default function ConsolePage() {
     <div className="flex flex-col h-full p-4 gap-3" style={{ height: "calc(100vh - 56px)" }}>
       <div>
         <h1 className="text-xl font-semibold text-slate-100">Konsole</h1>
-        <p className="text-xs text-slate-500">Shell im Backend-Container · Zugriff auf Docker-Socket und Netzwerk</p>
+        <p className="text-xs text-slate-500">SSH-Verbindung zum VPS-Host · Benutzer: {" "}
+          <span className="font-mono text-slate-400">{location.hostname}</span>
+        </p>
       </div>
       <div
         ref={containerRef}

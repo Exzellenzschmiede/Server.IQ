@@ -16,6 +16,12 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = ["http://localhost:8101"]
 
+    # VPS console — SSH from backend container to the host
+    console_ssh_host: str = "host.docker.internal"
+    console_ssh_port: int = 22
+    console_ssh_user: str = "deploy"
+    console_ssh_key_b64: str = ""  # base64 -w0 ~/.ssh/id_ed25519
+
     @property
     def database_url(self) -> str:
         return (
