@@ -20,11 +20,20 @@ jobs:
           script: |
             set -e
 
-            # ── One-time: remove old Docker containers if still running ─────
-            docker ps -a --filter "name=server-iq" --format "{{.ID}}" \
-              | xargs -r docker rm -f 2>/dev/null || true
-            docker images --filter "reference=ghcr.io/exzellenzschmiede/server.iq*" \
-              --format "{{.ID}}" | xargs -r docker rmi -f 2>/dev/null || true
+            # ── Pre-flight: verify first-time setup has been done ───────────
+            if [ ! -d /opt/server-iq ]; then
+              echo ""
+              echo "ERROR: /opt/server-iq does not exist."
+              echo "Run setup.sh on the VPS first (once, as root):"
+              echo ""
+              echo "  sudo bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/exzellenzschmiede/server.iq/main/setup.sh)\""
+              echo ""
+              echo "Then edit /opt/server-iq/.env and start the service:"
+              echo "  sudo nano /opt/server-iq/.env"
+              echo "  sudo systemctl start server-iq"
+              echo "  sudo systemctl reload nginx"
+              exit 1
+            fi
 
             # ── Pull latest code ────────────────────────────────────────────
             cd /opt/server-iq
