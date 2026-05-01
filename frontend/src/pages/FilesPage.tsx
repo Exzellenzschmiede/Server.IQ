@@ -23,6 +23,7 @@ export default function FilesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // File viewer/editor state
   const [fileContent, setFileContent] = useState<FileContentResponse | null>(null);
   const [fileLoading, setFileLoading] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("view");
@@ -31,6 +32,7 @@ export default function FilesPage() {
   const [saveMsg, setSaveMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Utility modals (new-file / new-dir / copy / delete / chmod)
   const [modalMode, setModalMode] = useState<ModalMode>("none");
   const [modalInput, setModalInput] = useState("");
   const [modalTarget, setModalTarget] = useState<FileEntry | null>(null);
@@ -45,15 +47,12 @@ export default function FilesPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
-  // Set webkitdirectory on the directory input (non-standard attribute)
   useEffect(() => {
     dirInputRef.current?.setAttribute("webkitdirectory", "");
   }, []);
 
   async function navigate(path: string | undefined) {
     setLoading(true);
-    setFileContent(null);
-    setViewMode("view");
     setError(null);
     try {
       const r = await listFiles(path);
@@ -91,6 +90,7 @@ export default function FilesPage() {
     setFileLoading(true);
     setError(null);
     setViewMode("view");
+    setSaveMsg(null);
     try {
       const r = await readFile(entry.path);
       setFileContent(r);
@@ -100,6 +100,13 @@ export default function FilesPage() {
     } finally {
       setFileLoading(false);
     }
+  }
+
+  function closeFile() {
+    setFileContent(null);
+    setFileLoading(false);
+    setViewMode("view");
+    setSaveMsg(null);
   }
 
   function startEdit() {
@@ -166,7 +173,7 @@ export default function FilesPage() {
         navigate(currentPath);
       } else if (modalMode === "delete" && modalTarget) {
         await deleteEntry(modalTarget.path);
-        if (fileContent?.path === modalTarget.path) setFileContent(null);
+        if (fileContent?.path === modalTarget.path) closeFile();
         closeModal();
         navigate(currentPath);
       } else if (modalMode === "chmod" && modalTarget) {
@@ -265,20 +272,8 @@ export default function FilesPage() {
   return (
     <div className="p-4 md:p-6 space-y-4">
       {/* Hidden file inputs */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        className="hidden"
-        onChange={handleFileInputChange}
-      />
-      <input
-        ref={dirInputRef}
-        type="file"
-        multiple
-        className="hidden"
-        onChange={handleFileInputChange}
-      />
+      <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileInputChange} />
+      <input ref={dirInputRef} type="file" multiple className="hidden" onChange={handleFileInputChange} />
 
       {/* Header + breadcrumbs */}
       <div className="flex flex-wrap items-center gap-2">
@@ -315,76 +310,6 @@ export default function FilesPage() {
         <div className="card bg-red-600/10 border border-red-500/30 text-red-400 text-sm">{error}</div>
       )}
 
-      {/* File viewer / editor */}
-      {(fileContent || fileLoading) && (
-        <div className="card space-y-2">
-          {fileContent && (
-            <>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs font-mono text-slate-400 truncate flex-1">{fileContent.path}</p>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {saveMsg && (
-                    <span className={`text-xs ${saveMsg.ok ? "text-emerald-400" : "text-red-400"}`}>
-                      {saveMsg.text}
-                    </span>
-                  )}
-                  {viewMode === "view" ? (
-                    <>
-                      <button
-                        onClick={startEdit}
-                        className="px-3 py-1 text-xs bg-indigo-600/20 text-indigo-300 rounded hover:bg-indigo-600/30 transition-colors"
-                      >
-                        ✏ Edit
-                      </button>
-                      <button
-                        onClick={() => { setFileContent(null); setViewMode("view"); }}
-                        className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
-                      >
-                        ✕
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={saveFile}
-                        disabled={saving}
-                        className="px-3 py-1 text-xs bg-emerald-600/20 text-emerald-400 rounded hover:bg-emerald-600/30 disabled:opacity-50 transition-colors"
-                      >
-                        {saving ? "Saving…" : "💾 Save"}
-                      </button>
-                      <button
-                        onClick={cancelEdit}
-                        className="px-3 py-1 text-xs bg-slate-700 text-slate-400 rounded hover:bg-slate-600 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-              {fileContent.truncated && (
-                <p className="text-xs text-yellow-400">⚠ File too large — first 2 MB shown (saving not available)</p>
-              )}
-              {viewMode === "view" ? (
-                <pre className="text-xs font-mono text-slate-300 overflow-auto max-h-[60vh] bg-slate-900 rounded p-3 whitespace-pre-wrap break-all">
-                  {fileContent.content || <span className="text-slate-600">(empty)</span>}
-                </pre>
-              ) : (
-                <textarea
-                  ref={textareaRef}
-                  value={editBuffer}
-                  onChange={(e) => setEditBuffer(e.target.value)}
-                  disabled={saving || fileContent.truncated}
-                  spellCheck={false}
-                  className="w-full h-[60vh] text-xs font-mono text-slate-200 bg-slate-900 rounded p-3 border border-slate-600 focus:outline-none focus:border-indigo-500 resize-y"
-                />
-              )}
-            </>
-          )}
-          {fileLoading && <p className="text-sm text-slate-500 py-4 text-center">Loading file…</p>}
-        </div>
-      )}
-
       {/* Directory listing */}
       <div
         className={`card overflow-x-auto transition-colors ${isDragOver ? "border-2 border-indigo-500 bg-indigo-500/5" : ""}`}
@@ -406,9 +331,7 @@ export default function FilesPage() {
           >
             + New Folder
           </button>
-
           <div className="w-px bg-slate-700 mx-1" />
-
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={!!uploadProgress}
@@ -477,9 +400,7 @@ export default function FilesPage() {
                 <tr
                   key={entry.path}
                   onClick={() => (entry.is_dir ? openDir(entry) : openFile(entry))}
-                  className={`border-b border-slate-700/50 hover:bg-slate-700/20 cursor-pointer ${
-                    fileContent?.path === entry.path ? "bg-indigo-600/10" : ""
-                  }`}
+                  className="border-b border-slate-700/50 hover:bg-slate-700/20 cursor-pointer"
                 >
                   <td className="py-1.5 pr-4">
                     <span className="mr-2 text-base">{entry.is_dir ? "📁" : "📄"}</span>
@@ -502,11 +423,10 @@ export default function FilesPage() {
                   <td className="py-1.5 pr-4 text-right text-slate-500 text-xs">
                     {entry.is_dir ? "—" : formatSize(entry.size)}
                   </td>
-                  <td className="py-1.5 pr-4 text-right text-slate-500 text-xs hidden sm:table-cell">{formatDate(entry.modified)}</td>
-                  <td
-                    className="py-1.5 text-right"
-                    onClick={(e) => e.stopPropagation()}
-                  >
+                  <td className="py-1.5 pr-4 text-right text-slate-500 text-xs hidden sm:table-cell">
+                    {formatDate(entry.modified)}
+                  </td>
+                  <td className="py-1.5 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end gap-1 flex-wrap">
                       <a
                         href={downloadUrl(entry.path)}
@@ -545,7 +465,6 @@ export default function FilesPage() {
           </table>
         )}
 
-        {/* Drop hint when listing is visible */}
         {!isDragOver && !loading && (
           <p className="mt-3 text-xs text-slate-600 text-center">
             Drop files or folders here to upload
@@ -553,7 +472,95 @@ export default function FilesPage() {
         )}
       </div>
 
-      {/* Modal */}
+      {/* ── File viewer / editor modal ───────────────────────────────────────── */}
+      {(fileContent || fileLoading) && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+          onClick={closeFile}
+        >
+          <div
+            className="bg-slate-800 border border-slate-700 rounded-xl shadow-xl w-full max-w-5xl h-[90vh] mx-4 flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 shrink-0">
+              <p className="text-xs font-mono text-slate-400 truncate flex-1 mr-3">
+                {fileContent?.path ?? "Loading…"}
+              </p>
+              <div className="flex items-center gap-2 shrink-0">
+                {saveMsg && (
+                  <span className={`text-xs ${saveMsg.ok ? "text-emerald-400" : "text-red-400"}`}>
+                    {saveMsg.text}
+                  </span>
+                )}
+                {fileContent && !fileLoading && (
+                  viewMode === "view" ? (
+                    <button
+                      onClick={startEdit}
+                      disabled={fileContent.truncated}
+                      title={fileContent.truncated ? "File too large to edit" : undefined}
+                      className="px-3 py-1 text-xs bg-indigo-600/20 text-indigo-300 rounded hover:bg-indigo-600/30 disabled:opacity-40 transition-colors"
+                    >
+                      ✏ Edit
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={saveFile}
+                        disabled={saving}
+                        className="px-3 py-1 text-xs bg-emerald-600/20 text-emerald-400 rounded hover:bg-emerald-600/30 disabled:opacity-50 transition-colors"
+                      >
+                        {saving ? "Saving…" : "💾 Save"}
+                      </button>
+                      <button
+                        onClick={cancelEdit}
+                        className="px-3 py-1 text-xs bg-slate-700 text-slate-400 rounded hover:bg-slate-600 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  )
+                )}
+                <button
+                  onClick={closeFile}
+                  className="ml-1 text-slate-500 hover:text-slate-200 transition-colors text-lg leading-none"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Truncation warning */}
+            {fileContent?.truncated && (
+              <div className="px-4 py-2 text-xs text-yellow-400 bg-yellow-500/10 border-b border-yellow-500/20 shrink-0">
+                ⚠ File too large — first 2 MB shown. Editing is disabled.
+              </div>
+            )}
+
+            {/* Content area */}
+            <div className="flex-1 min-h-0 overflow-hidden">
+              {fileLoading ? (
+                <p className="text-sm text-slate-500 py-8 text-center">Loading file…</p>
+              ) : viewMode === "view" ? (
+                <pre className="h-full overflow-auto text-xs font-mono text-slate-300 bg-slate-900 p-4 whitespace-pre-wrap break-all">
+                  {fileContent?.content || <span className="text-slate-600">(empty file)</span>}
+                </pre>
+              ) : (
+                <textarea
+                  ref={textareaRef}
+                  value={editBuffer}
+                  onChange={(e) => setEditBuffer(e.target.value)}
+                  disabled={saving}
+                  spellCheck={false}
+                  className="w-full h-full text-xs font-mono text-slate-200 bg-slate-900 p-4 border-0 focus:outline-none resize-none"
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Utility modals (new-file / new-dir / copy / delete / chmod) ──────── */}
       {modalMode !== "none" && (
         <div
           className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
@@ -614,7 +621,7 @@ export default function FilesPage() {
                     : "bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30"
                 }`}
               >
-                {actionLoading ? "…" : modalMode === "delete" ? "Delete" : "Create"}
+                {actionLoading ? "…" : modalMode === "delete" ? "Delete" : "Confirm"}
               </button>
             </div>
           </div>
