@@ -84,9 +84,11 @@ export default function CleanupPage() {
     try {
       const res = await runCleanup(Array.from(selected));
       setResults(res.results);
-      await doScan();
-    } catch {
-      setError("Cleanup failed.");
+      setScan(null);
+      setSelected(new Set());
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setError(detail ? `Cleanup failed: ${detail}` : "Cleanup failed.");
     } finally {
       setRunning(false);
     }
@@ -188,7 +190,12 @@ export default function CleanupPage() {
 
       {results && results.length > 0 && (
         <div className="card space-y-3">
-          <h2 className="text-sm font-semibold text-slate-300">Results</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-300">Results</h2>
+            <button onClick={doScan} disabled={scanning} className="btn-ghost text-xs">
+              {scanning ? "Scanning…" : "Re-scan"}
+            </button>
+          </div>
           <div className="space-y-2">
             {results.map((r) => (
               <ResultRow key={r.key} r={r} />

@@ -6,8 +6,8 @@ from pathlib import Path
 from .schemas import CleanableItem, CleanupActionResult, CleanupResult, CleanupScanResult
 
 
-def _run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=60, **kwargs)
+def _run(cmd: list[str], timeout: int = 120, **kwargs) -> subprocess.CompletedProcess:
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, **kwargs)
 
 
 def _dir_size(path: Path) -> int:
@@ -184,29 +184,47 @@ def run_cleanup(actions: list[str]) -> CleanupResult:
         results.append(CleanupActionResult(key=key, ok=ok, freed_bytes=freed, message=msg))
 
     if "docker_images" in actions and docker_ok:
-        r = _run(["docker", "image", "prune", "-f"])
-        add("docker_images", r.returncode == 0, 0, r.stdout.strip() or r.stderr.strip() or "Done")
+        try:
+            r = _run(["docker", "image", "prune", "-f"])
+            add("docker_images", r.returncode == 0, 0, r.stdout.strip() or r.stderr.strip() or "Done")
+        except Exception as e:
+            add("docker_images", False, 0, str(e))
 
     if "docker_containers" in actions and docker_ok:
-        r = _run(["docker", "container", "prune", "-f"])
-        add("docker_containers", r.returncode == 0, 0, r.stdout.strip() or r.stderr.strip() or "Done")
+        try:
+            r = _run(["docker", "container", "prune", "-f"])
+            add("docker_containers", r.returncode == 0, 0, r.stdout.strip() or r.stderr.strip() or "Done")
+        except Exception as e:
+            add("docker_containers", False, 0, str(e))
 
     if "docker_volumes" in actions and docker_ok:
-        r = _run(["docker", "volume", "prune", "-f"])
-        add("docker_volumes", r.returncode == 0, 0, r.stdout.strip() or r.stderr.strip() or "Done")
+        try:
+            r = _run(["docker", "volume", "prune", "-f"])
+            add("docker_volumes", r.returncode == 0, 0, r.stdout.strip() or r.stderr.strip() or "Done")
+        except Exception as e:
+            add("docker_volumes", False, 0, str(e))
 
     if "docker_build_cache" in actions and docker_ok:
-        r = _run(["docker", "builder", "prune", "-f"])
-        add("docker_build_cache", r.returncode == 0, 0, r.stdout.strip() or r.stderr.strip() or "Done")
+        try:
+            r = _run(["docker", "builder", "prune", "-f"])
+            add("docker_build_cache", r.returncode == 0, 0, r.stdout.strip() or r.stderr.strip() or "Done")
+        except Exception as e:
+            add("docker_build_cache", False, 0, str(e))
 
     if "apt_cache" in actions:
-        r = _run(["apt-get", "clean"])
-        add("apt_cache", r.returncode == 0, 0, "APT cache cleared" if r.returncode == 0 else r.stderr.strip())
+        try:
+            r = _run(["apt-get", "clean"])
+            add("apt_cache", r.returncode == 0, 0, "APT cache cleared" if r.returncode == 0 else r.stderr.strip())
+        except Exception as e:
+            add("apt_cache", False, 0, str(e))
 
     if "apt_autoremove" in actions:
-        r = _run(["apt-get", "autoremove", "-y", "--purge"],
-                 env={**os.environ, "DEBIAN_FRONTEND": "noninteractive"})
-        add("apt_autoremove", r.returncode == 0, 0, r.stdout.strip()[-300:] or "Done")
+        try:
+            r = _run(["apt-get", "autoremove", "-y", "--purge"], timeout=300,
+                     env={**os.environ, "DEBIAN_FRONTEND": "noninteractive"})
+            add("apt_autoremove", r.returncode == 0, 0, r.stdout.strip()[-300:] or "Done")
+        except Exception as e:
+            add("apt_autoremove", False, 0, str(e))
 
     if "log_archives" in actions:
         freed = 0
