@@ -42,13 +42,18 @@ function ItemRow({
 }
 
 function ResultRow({ r }: { r: CleanupActionResult }) {
+  const label = r.key.replace(/_/g, " ");
   return (
     <div className={`flex items-start gap-2 text-xs ${r.ok ? "text-emerald-400" : "text-red-400"}`}>
-      <span>{r.ok ? "✓" : "✗"}</span>
-      <div>
-        <span className="font-medium">{r.key}</span>
-        {r.freed_bytes > 0 && <span className="text-slate-500 ml-2">freed {fmt(r.freed_bytes)}</span>}
-        <p className="text-slate-500 mt-0.5">{r.message}</p>
+      <span className="mt-0.5 shrink-0">{r.ok ? "✓" : "✗"}</span>
+      <div className="min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-medium capitalize">{label}</span>
+          {r.freed_bytes > 0 && (
+            <span className="text-emerald-300 font-semibold">freed {fmt(r.freed_bytes)}</span>
+          )}
+        </div>
+        <p className="text-slate-500 mt-0.5 break-words">{r.message}</p>
       </div>
     </div>
   );

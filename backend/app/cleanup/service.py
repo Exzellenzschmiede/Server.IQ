@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -8,6 +9,19 @@ from .schemas import CleanableItem, CleanupActionResult, CleanupResult, CleanupS
 
 def _run(cmd: list[str], timeout: int = 120, **kwargs) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, **kwargs)
+
+
+def _parse_reclaimed(output: str) -> int:
+    """Parse 'Total reclaimed space: 1.23GB' from docker prune output."""
+    m = re.search(r"Total reclaimed space:\s*([\d.]+)\s*(GB|MB|kB|B)", output, re.IGNORECASE)
+    if not m:
+        return 0
+    val = float(m.group(1))
+    unit = m.group(2).upper()
+    if unit == "GB": return int(val * 1024 ** 3)
+    if unit == "MB": return int(val * 1024 ** 2)
+    if unit == "KB": return int(val * 1024)
+    return int(val)
 
 
 def _dir_size(path: Path) -> int:
@@ -185,35 +199,46 @@ def run_cleanup(actions: list[str]) -> CleanupResult:
 
     if "docker_images" in actions and docker_ok:
         try:
-            r = _run(["docker", "image", "prune", "-f"])
-            add("docker_images", r.returncode == 0, 0, r.stdout.strip() or r.stderr.strip() or "Done")
+            r = _run(["docker", "image", "prune", "-f"], timeout=300)
+            freed = _parse_reclaimed(r.stdout)
+            out = r.stdout.strip() or r.stderr.strip() or "Done"
+            add("docker_images", r.returncode == 0, freed, out)
         except Exception as e:
             add("docker_images", False, 0, str(e))
 
     if "docker_containers" in actions and docker_ok:
         try:
-            r = _run(["docker", "container", "prune", "-f"])
-            add("docker_containers", r.returncode == 0, 0, r.stdout.strip() or r.stderr.strip() or "Done")
+            r = _run(["docker", "container", "prune", "-f"], timeout=300)
+            freed = _parse_reclaimed(r.stdout)
+            out = r.stdout.strip() or r.stderr.strip() or "Done"
+            add("docker_containers", r.returncode == 0, freed, out)
         except Exception as e:
             add("docker_containers", False, 0, str(e))
 
     if "docker_volumes" in actions and docker_ok:
         try:
-            r = _run(["docker", "volume", "prune", "-f"])
-            add("docker_volumes", r.returncode == 0, 0, r.stdout.strip() or r.stderr.strip() or "Done")
+            r = _run(["docker", "volume", "prune", "-f"], timeout=300)
+            freed = _parse_reclaimed(r.stdout)
+            out = r.stdout.strip() or r.stderr.strip() or "Done"
+            add("docker_volumes", r.returncode == 0, freed, out)
         except Exception as e:
             add("docker_volumes", False, 0, str(e))
 
     if "docker_build_cache" in actions and docker_ok:
         try:
-            r = _run(["docker", "builder", "prune", "-f"])
-            add("docker_build_cache", r.returncode == 0, 0, r.stdout.strip() or r.stderr.strip() or "Done")
+            r = _run(["docker", "builder", "prune", "-f", "--keep-storage", "0"], timeout=600)
+            freed = _parse_reclaimed(r.stdout)
+            out = r.stdout.strip() or r.stderr.strip() or "Done"
+            add("docker_build_cache", r.returncode == 0, freed, out)
+        except subprocess.TimeoutExpired:
+            add("docker_build_cache", False, 0,
+                "Timed out (build cache prune can be slow). Try again or run manually: docker builder prune -f")
         except Exception as e:
             add("docker_build_cache", False, 0, str(e))
 
     if "apt_cache" in actions:
         try:
-            r = _run(["apt-get", "clean"])
+            r = _run(["apt-get", "clean"], timeout=120)
             add("apt_cache", r.returncode == 0, 0, "APT cache cleared" if r.returncode == 0 else r.stderr.strip())
         except Exception as e:
             add("apt_cache", False, 0, str(e))
@@ -222,7 +247,8 @@ def run_cleanup(actions: list[str]) -> CleanupResult:
         try:
             r = _run(["apt-get", "autoremove", "-y", "--purge"], timeout=300,
                      env={**os.environ, "DEBIAN_FRONTEND": "noninteractive"})
-            add("apt_autoremove", r.returncode == 0, 0, r.stdout.strip()[-300:] or "Done")
+            out = r.stdout.strip()[-400:] or "Done"
+            add("apt_autoremove", r.returncode == 0, 0, out)
         except Exception as e:
             add("apt_autoremove", False, 0, str(e))
 
