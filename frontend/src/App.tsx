@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { checkSetup } from "./api/auth";
 import { AuthProvider } from "./auth/AuthContext";
+import { CleanupProvider } from "./context/CleanupContext";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import RequireAdmin from "./auth/RequireAdmin";
 import AppShell from "./components/layout/AppShell";
@@ -63,6 +64,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+      <CleanupProvider>
         <Routes>
           <Route path="/setup" element={<SetupPageGuard><SetupPage /></SetupPageGuard>} />
           <Route path="/login" element={<LoginPage />} />
@@ -99,6 +101,7 @@ export default function App() {
             </SetupGuard>
           } />
         </Routes>
+      </CleanupProvider>
       </AuthProvider>
     </BrowserRouter>
   );
