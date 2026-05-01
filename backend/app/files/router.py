@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, Query
+import json
+
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 
 from app.dependencies import get_current_user, require_admin
 from app.models import User
@@ -10,8 +12,9 @@ from .schemas import (
     FileListResponse,
     FileOpResponse,
     FileWriteRequest,
+    UploadResponse,
 )
-from .service import copy_entry, create_dir, delete_entry, list_path, read_file, write_file
+from .service import copy_entry, create_dir, delete_entry, list_path, read_file, upload_files, write_file
 
 router = APIRouter()
 
@@ -62,3 +65,16 @@ async def copy(
     _: User = Depends(require_admin),
 ):
     return copy_entry(body.src, body.dst)
+
+
+@router.post("/upload", response_model=UploadResponse, status_code=201)
+async def upload(
+    dest: str = Form(...),
+    files: list[UploadFile] = File(...),
+    paths: str = Form("[]"),
+    _: User = Depends(require_admin),
+):
+    relative_paths: list[str] = json.loads(paths)
+    while len(relative_paths) < len(files):
+        relative_paths.append(files[len(relative_paths)].filename or "upload")
+    return await upload_files(dest, files, relative_paths)

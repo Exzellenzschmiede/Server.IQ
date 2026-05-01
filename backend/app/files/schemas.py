@@ -36,3 +36,8 @@ class FileCopyRequest(BaseModel):
 
 class FileOpResponse(BaseModel):
     path: str
+
+
+class UploadResponse(BaseModel):
+    uploaded: int
+    dest: str

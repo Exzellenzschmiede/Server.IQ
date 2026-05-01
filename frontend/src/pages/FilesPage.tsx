@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { copyEntry, createDir, deleteEntry, listFiles, readFile, writeFile } from "../api/files";
+import { copyEntry, createDir, deleteEntry, listFiles, readFile, uploadFiles, writeFile } from "../api/files";
 import type { FileContentResponse, FileEntry, FileListResponse } from "../types/files";
 
 function formatSize(bytes: number): string {
@@ -37,6 +37,18 @@ export default function FilesPage() {
   const [modalError, setModalError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const modalInputRef = useRef<HTMLInputElement>(null);
+
+  // Upload state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const dirInputRef = useRef<HTMLInputElement>(null);
+  const [uploadProgress, setUploadProgress] = useState<{ loaded: number; total: number } | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  // Set webkitdirectory on the directory input (non-standard attribute)
+  useEffect(() => {
+    dirInputRef.current?.setAttribute("webkitdirectory", "");
+  }, []);
 
   async function navigate(path: string | undefined) {
     setLoading(true);
@@ -165,10 +177,105 @@ export default function FilesPage() {
     }
   }
 
+  // ── Upload helpers ────────────────────────────────────────────────────────
+
+  async function doUpload(items: { file: File; relativePath: string }[]) {
+    if (items.length === 0) return;
+    setUploadError(null);
+    setUploadProgress({ loaded: 0, total: 1 });
+    try {
+      await uploadFiles(
+        currentPath ?? "/",
+        items,
+        (loaded, total) => setUploadProgress({ loaded, total }),
+      );
+      await navigate(currentPath);
+    } catch (e: unknown) {
+      setUploadError(errDetail(e) ?? "Upload failed");
+    } finally {
+      setUploadProgress(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (dirInputRef.current) dirInputRef.current.value = "";
+    }
+  }
+
+  function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const fl = e.target.files;
+    if (!fl) return;
+    const items = Array.from(fl).map((f) => ({
+      file: f,
+      relativePath: (f as File & { webkitRelativePath: string }).webkitRelativePath || f.name,
+    }));
+    doUpload(items);
+  }
+
+  async function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const dtItems = Array.from(e.dataTransfer.items).filter((i) => i.kind === "file");
+    if (dtItems.length === 0) return;
+
+    const collected: { file: File; relativePath: string }[] = [];
+
+    async function traverseEntry(entry: FileSystemEntry, prefix = "") {
+      if (entry.isFile) {
+        await new Promise<void>((resolve) => {
+          (entry as FileSystemFileEntry).file((f) => {
+            collected.push({ file: f, relativePath: prefix + entry.name });
+            resolve();
+          });
+        });
+      } else if (entry.isDirectory) {
+        const reader = (entry as FileSystemDirectoryEntry).createReader();
+        const readBatch = () =>
+          new Promise<FileSystemEntry[]>((res) => reader.readEntries(res));
+        let batch: FileSystemEntry[];
+        const subEntries: FileSystemEntry[] = [];
+        do {
+          batch = await readBatch();
+          subEntries.push(...batch);
+        } while (batch.length > 0);
+        for (const sub of subEntries) {
+          await traverseEntry(sub, prefix + entry.name + "/");
+        }
+      }
+    }
+
+    for (const item of dtItems) {
+      const entry = item.webkitGetAsEntry();
+      if (entry) await traverseEntry(entry);
+    }
+
+    if (collected.length > 0) await doUpload(collected);
+  }
+
+  const uploadPct =
+    uploadProgress && uploadProgress.total > 0
+      ? Math.round((uploadProgress.loaded / uploadProgress.total) * 100)
+      : 0;
+
   const pathParts = (currentPath ?? "/").split("/").filter(Boolean);
 
   return (
     <div className="p-4 md:p-6 space-y-4">
+      {/* Hidden file inputs */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={handleFileInputChange}
+      />
+      <input
+        ref={dirInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={handleFileInputChange}
+      />
+
       {/* Header + breadcrumbs */}
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="text-xl font-bold mr-2">File Browser</h1>
@@ -275,9 +382,14 @@ export default function FilesPage() {
       )}
 
       {/* Directory listing */}
-      <div className="card overflow-x-auto">
+      <div
+        className={`card overflow-x-auto transition-colors ${isDragOver ? "border-2 border-indigo-500 bg-indigo-500/5" : ""}`}
+        onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+        onDragLeave={() => setIsDragOver(false)}
+        onDrop={handleDrop}
+      >
         {/* Toolbar */}
-        <div className="flex gap-2 mb-3">
+        <div className="flex flex-wrap gap-2 mb-3">
           <button
             onClick={() => openModal("new-file")}
             className="px-3 py-1 text-xs bg-indigo-600/20 text-indigo-300 rounded hover:bg-indigo-600/30 transition-colors"
@@ -290,7 +402,55 @@ export default function FilesPage() {
           >
             + New Folder
           </button>
+
+          <div className="w-px bg-slate-700 mx-1" />
+
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={!!uploadProgress}
+            className="px-3 py-1 text-xs bg-emerald-600/20 text-emerald-400 rounded hover:bg-emerald-600/30 disabled:opacity-50 transition-colors"
+          >
+            ↑ Upload Files
+          </button>
+          <button
+            onClick={() => dirInputRef.current?.click()}
+            disabled={!!uploadProgress}
+            className="px-3 py-1 text-xs bg-emerald-600/20 text-emerald-400 rounded hover:bg-emerald-600/30 disabled:opacity-50 transition-colors"
+          >
+            ↑ Upload Folder
+          </button>
         </div>
+
+        {/* Upload progress */}
+        {uploadProgress && (
+          <div className="mb-3 space-y-1">
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              <span>Uploading…</span>
+              <span>{uploadPct}%</span>
+            </div>
+            <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-indigo-500 transition-all duration-150 rounded-full"
+                style={{ width: `${uploadPct}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Upload error */}
+        {uploadError && (
+          <div className="mb-3 text-xs text-red-400 bg-red-600/10 border border-red-500/30 rounded px-3 py-2 flex items-center justify-between">
+            <span>{uploadError}</span>
+            <button onClick={() => setUploadError(null)} className="ml-2 text-red-500 hover:text-red-300">✕</button>
+          </div>
+        )}
+
+        {/* Drag-over hint */}
+        {isDragOver && (
+          <div className="mb-3 text-xs text-indigo-300 text-center py-2 rounded border-2 border-dashed border-indigo-500/50">
+            Drop files or folders here to upload
+          </div>
+        )}
 
         {loading ? (
           <p className="text-sm text-slate-500 py-4 text-center">Loading…</p>
@@ -356,6 +516,13 @@ export default function FilesPage() {
               ))}
             </tbody>
           </table>
+        )}
+
+        {/* Drop hint when listing is visible */}
+        {!isDragOver && !loading && (
+          <p className="mt-3 text-xs text-slate-600 text-center">
+            Drop files or folders here to upload
+          </p>
         )}
       </div>
 

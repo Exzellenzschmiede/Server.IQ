@@ -30,3 +30,24 @@ export async function copyEntry(src: string, dst: string): Promise<FileOpRespons
   const { data } = await client.post<FileOpResponse>("/files/copy", { src, dst });
   return data;
 }
+
+export async function uploadFiles(
+  dest: string,
+  items: { file: File; relativePath: string }[],
+  onProgress?: (loaded: number, total: number) => void,
+): Promise<{ uploaded: number; dest: string }> {
+  const form = new FormData();
+  form.append("dest", dest);
+  const paths: string[] = [];
+  for (const { file, relativePath } of items) {
+    form.append("files", file);
+    paths.push(relativePath);
+  }
+  form.append("paths", JSON.stringify(paths));
+  const { data } = await client.post<{ uploaded: number; dest: string }>("/files/upload", form, {
+    onUploadProgress: (e) => {
+      if (onProgress && e.total) onProgress(e.loaded, e.total);
+    },
+  });
+  return data;
+}

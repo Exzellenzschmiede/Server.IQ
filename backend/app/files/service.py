@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi import HTTPException, status
 
-from .schemas import FileContentResponse, FileEntry, FileListResponse, FileOpResponse
+from .schemas import FileContentResponse, FileEntry, FileListResponse, FileOpResponse, UploadResponse
 
 MAX_READ_BYTES = 2 * 1024 * 1024  # 2 MB
 
@@ -115,6 +115,35 @@ def copy_entry(src: str, dst: str) -> FileOpResponse:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+
+
+async def upload_files(dest: str, files: list, relative_paths: list[str]) -> UploadResponse:
+    dest_resolved = _resolve(dest)
+    if not dest_resolved.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Destination directory not found")
+    if not dest_resolved.is_dir():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Destination is not a directory")
+
+    uploaded = 0
+    for file, rel_path in zip(files, relative_paths):
+        clean = Path(rel_path.lstrip("/"))
+        if any(part == ".." for part in clean.parts):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid path: {rel_path}")
+        target = dest_resolved / clean
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            content = await file.read()
+            with open(target, "wb") as f:
+                f.write(content)
+            uploaded += 1
+        except PermissionError:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        except Exception as exc:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+        finally:
+            await file.close()
+
+    return UploadResponse(uploaded=uploaded, dest=str(dest_resolved))
 
 
 def write_file(path: str, content: str) -> FileContentResponse:
