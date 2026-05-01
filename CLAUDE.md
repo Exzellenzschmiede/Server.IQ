@@ -1,235 +1,248 @@
 # Server.IQ — CLAUDE.md
 
-## Projekt-Übersicht
+## Project Overview
 
-Self-hosted VPS Admin Console als Progressive Web App (PWA). Läuft als Docker-Container auf dem VPS, erreichbar unter `https://server.exzellenzschmiede.de`. Ermöglicht Echtzeit-Monitoring (CPU, RAM, Disk, Network, Services) sowie vollständige Docker-Container-Verwaltung (Start/Stop/Delete/Reinstall/Logs).
+Self-hosted VPS Admin Console as a Progressive Web App (PWA). Runs as a systemd service directly on the VPS host under the `root` user. Accessible at `https://server.exzellenzschmiede.de`. Provides real-time monitoring (CPU, RAM, disk, network, services) and full management of Docker containers, firewall rules, SSL certificates, cron jobs, files, and more.
 
 ---
 
-## Workflow-Regel
+## Workflow Rules
 
-**Vor jeder Prompt-Ausführung den aktuellen Stand aus `main` pullen.**
+**Before every prompt: pull the latest state from the development branch.**
 
 ```bash
-git pull origin main
+git pull origin claude/vps-admin-console-VW9pv
 ```
 
-**Nach jedem abgeschlossenen Prompt einen Commit auf `main` pushen.**
+**After every completed prompt: commit and push to the development branch.**
 
 ```bash
 git add -A
-git commit -m "beschreibender commit-message"
-git push origin main
+git commit -m "descriptive commit message"
+git push -u origin claude/vps-admin-console-VW9pv
 ```
 
-Der Push auf `main` löst automatisch das CI/CD-Deployment auf den VPS aus.
+A push to `main` automatically triggers CI/CD deployment to the VPS.
+
+**After every completed prompt: review `README.md` and all files in `docs/` and update any outdated or missing information before committing.**
 
 ---
 
-## Infrastruktur
+## Infrastructure
 
-| Parameter | Wert |
+| Parameter | Value |
 |---|---|
 | VPS IP | `217.154.199.218` |
 | Domain | `server.exzellenzschmiede.de` |
-| Backend-Port (Host) | `8100` (konfigurierbar via `.env`) |
-| Frontend-Port (Host) | `8101` (konfigurierbar via `.env`) |
-| PostgreSQL | Host-Postgres auf `172.17.0.1:5432` (vom Docker-Container aus) |
-| DB Name | `server_iq` |
-| DB User | `serveriq` |
-| Deploy-User | `deploy` |
-| SSL | Let's Encrypt unter `/etc/letsencrypt/live/server.exzellenzschmiede.de/` |
+| Backend port | `8100` |
+| Frontend port | `8101` |
+| PostgreSQL | host `localhost`, port `5432` |
+| DB name | `server_iq` |
+| DB user | `serveriq` |
+| Service user | `root` |
+| SSL | Let's Encrypt under `/etc/letsencrypt/live/server.exzellenzschmiede.de/` |
 
 ---
 
 ## Tech Stack
 
-| Schicht | Technologie |
+| Layer | Technology |
 |---|---|
-| Backend | Python 3.12, FastAPI, uvicorn |
-| System-Monitoring | psutil (CPU/RAM/Disk/Network), subprocess (systemctl) |
-| Docker-Verwaltung | docker-py SDK |
-| Auth | JWT (python-jose), bcrypt (passlib) |
-| Datenbank | SQLAlchemy async + asyncpg → Host-PostgreSQL |
+| Backend runtime | Python 3.12, FastAPI, uvicorn |
+| System monitoring | psutil (CPU/RAM/disk/network), subprocess (systemctl/journalctl/ufw/crontab) |
+| Docker management | aiodocker (async Docker SDK) |
+| Authentication | JWT (python-jose), bcrypt (passlib) |
+| Database ORM | SQLAlchemy 2 async + asyncpg |
+| Database | PostgreSQL (host, not containerized) |
+| WebSockets | FastAPI native WebSocket + asyncio PTY |
+| Rate limiting | slowapi |
+| HTTP client | httpx (Telegram notifications) |
 | Frontend | React 18, TypeScript, Tailwind CSS, Vite |
-| PWA | vite-plugin-pwa (Service Worker + Manifest) |
-| Proxy | Host-nginx mit eigenem Server-Block |
-| CI/CD | GitHub Actions → GHCR → SSH-Deploy auf VPS |
+| Charts | Recharts |
+| Terminal | xterm.js + @xterm/addon-fit |
+| PWA | vite-plugin-pwa (Workbox) |
+| Proxy / TLS | Host nginx + Let's Encrypt |
+| Deployment | GitHub Actions → SSH (appleboy/ssh-action) |
 
 ---
 
-## Projekt-Struktur
+## Project Structure
 
 ```
 Server.IQ/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py              # FastAPI-App, Routers, CORS, Rate-Limit
-│   │   ├── config.py            # pydantic-settings (alle Env-Vars)
-│   │   ├── database.py          # SQLAlchemy async engine + Session
-│   │   ├── models.py            # User-Tabelle
-│   │   ├── dependencies.py      # get_current_user (JWT-Dependency)
-│   │   ├── auth/
-│   │   │   ├── router.py        # /auth/setup, /login, /refresh, /me
-│   │   │   ├── schemas.py
-│   │   │   └── service.py       # bcrypt, JWT encode/decode
-│   │   ├── system/
-│   │   │   ├── router.py        # /system/metrics, /services, /info
-│   │   │   ├── schemas.py
-│   │   │   └── service.py       # psutil + systemctl subprocess
-│   │   ├── docker_mgmt/
-│   │   │   ├── router.py        # /docker/containers CRUD + WS /logs/{id}
-│   │   │   ├── schemas.py
-│   │   │   └── service.py       # docker-py SDK
-│   │   └── websockets/
-│   │       └── manager.py       # WebSocket Log-Streaming
-│   ├── Dockerfile
-│   └── requirements.txt
+│   │   ├── main.py              # FastAPI app, router registration, lifespan + background tasks
+│   │   ├── config.py            # pydantic-settings (env vars)
+│   │   ├── database.py          # SQLAlchemy async engine + session
+│   │   ├── models.py            # All SQLAlchemy ORM models
+│   │   ├── dependencies.py      # get_current_user, require_admin
+│   │   ├── auth/                # JWT login, refresh, setup wizard
+│   │   ├── system/              # Metrics, services, health, processes, history
+│   │   ├── docker_mgmt/         # Container CRUD + log streaming
+│   │   ├── firewall/            # UFW read + write
+│   │   ├── ssl_certs/           # Let's Encrypt expiry checker
+│   │   ├── cron/                # crontab read / write
+│   │   ├── files/               # Full filesystem browser + editor
+│   │   ├── notifications/       # Telegram + SMTP config + background monitor
+│   │   ├── settings/            # Monitored-service CRUD
+│   │   ├── users/               # User management
+│   │   ├── logs/                # App log streaming (journalctl WebSocket)
+│   │   ├── console/             # PTY WebSocket terminal
+│   │   └── websockets/          # WebSocket connection manager
+│   ├── requirements.txt
+│   └── Dockerfile               # (kept for reference, not used in production)
 │
 ├── frontend/
 │   ├── src/
 │   │   ├── App.tsx              # Router, SetupGuard, ProtectedRoute
-│   │   ├── api/                 # client.ts (Axios+JWT), auth/system/docker
-│   │   ├── auth/                # AuthContext, ProtectedRoute
+│   │   ├── api/                 # Axios client + one module per backend area
+│   │   ├── auth/                # AuthContext, ProtectedRoute, RequireAdmin
 │   │   ├── hooks/               # useMetrics, useContainers, useContainerLogs
-│   │   ├── pages/               # Setup, Login, Dashboard, Services, Containers, Logs
+│   │   ├── pages/               # One file per page/route
 │   │   ├── components/
-│   │   │   ├── layout/          # AppShell, Sidebar (Desktop), BottomNav (Mobile)
-│   │   │   ├── ui/              # GaugeChart, StatusBadge, MetricCard, Spinner, Button
+│   │   │   ├── layout/          # AppShell, Sidebar (desktop), BottomNav (mobile)
+│   │   │   ├── ui/              # GaugeChart, MetricCard, StatusBadge, Spinner, Logo
 │   │   │   └── containers/      # ContainerActions, LogViewer
-│   │   └── types/               # auth.ts, system.ts, docker.ts
-│   ├── Dockerfile               # Node build → nginx:alpine
-│   ├── nginx.conf               # SPA-Fallback auf index.html
-│   └── vite.config.ts           # vite-plugin-pwa, /api-Proxy auf Backend
+│   │   └── types/               # TypeScript interfaces mirroring backend schemas
+│   ├── public/                  # PWA manifest + icons
+│   ├── vite.config.ts           # PWA plugin, /api proxy in dev
+│   └── nginx.conf               # SPA fallback (used inside build container, not in production)
 │
 ├── nginx/
-│   └── server-iq.conf           # Host-nginx Server-Block (wird per CI/CD deployed)
+│   └── server-iq.conf           # Host nginx server block (deployed by CI/CD)
 │
-├── .github/
-│   └── workflows/
-│       └── deploy.yml           # build → GHCR push → SCP nginx → SSH deploy
+├── .github/workflows/
+│   └── deploy.yml               # CI/CD pipeline
 │
-├── docker-compose.yml
-├── .env.example
-└── CLAUDE.md
+├── server-iq.service            # systemd unit (User=root)
+├── setup.sh                     # First-time VPS provisioning script
+├── .env.example                 # Environment variable template
+├── README.md                    # Project overview and quick start
+├── docs/
+│   ├── architecture.md          # Stack, module map, DB schema, background tasks
+│   ├── api.md                   # All REST and WebSocket endpoints
+│   ├── deployment.md            # Full deployment guide, env vars, sudoers, CI/CD
+│   └── user-guide.md            # Page-by-page user guide
+└── CLAUDE.md                    # This file
 ```
 
 ---
 
-## API-Endpunkte
+## API Endpoints (summary)
 
 ### Auth — `/api/v1/auth`
-| Methode | Pfad | Auth | Beschreibung |
+| Method | Path | Auth | Description |
 |---|---|---|---|
-| GET | `/auth/setup` | Nein | Prüft ob noch kein Admin existiert |
-| POST | `/auth/setup` | Nein | Legt ersten Admin an (nur einmalig) |
-| POST | `/auth/login` | Nein | Gibt access_token (15 min) + refresh_token (7 d) zurück |
-| POST | `/auth/refresh` | Nein | Tauscht refresh_token gegen neuen access_token |
-| GET | `/auth/me` | JWT | Aktueller User |
+| GET | `/auth/setup` | No | Check whether first-run setup is still needed |
+| POST | `/auth/setup` | No | Create first admin user (locked after first user) |
+| POST | `/auth/login` | No | Returns access_token (15 min) + refresh_token (7 d) |
+| POST | `/auth/refresh` | No | Exchange refresh_token for new access_token |
+| GET | `/auth/me` | JWT | Current user profile |
 
 ### System — `/api/v1/system`
-| Methode | Pfad | Beschreibung |
+| Method | Path | Description |
 |---|---|---|
-| GET | `/system/metrics` | CPU, RAM, Disk, Network (psutil) |
-| GET | `/system/services` | nginx, postgresql, docker, ssh via systemctl |
-| GET | `/system/info` | Hostname, OS, Kernel, Uptime |
+| GET | `/system/metrics` | CPU, RAM, disk, network snapshot (psutil) |
+| GET | `/system/services` | Status of all enabled monitored services |
+| GET | `/system/services/{key}/detail` | Parsed `systemctl show` output |
+| GET | `/system/services/{key}/logs` | Last N lines from journalctl |
+| POST | `/system/services/{key}/action` | start / stop / restart (admin) |
+| GET | `/system/info` | Hostname, OS, kernel, uptime |
+| GET | `/system/processes` | Top processes sorted by CPU or memory |
+| GET | `/system/history` | Metric snapshots for last N hours |
+| GET | `/system/health` | Disk / memory / load / apt-update health checks |
 
 ### Docker — `/api/v1/docker`
-| Methode | Pfad | Beschreibung |
+| Method | Path | Description |
 |---|---|---|
-| GET | `/docker/containers` | Alle Container (inkl. gestoppte) |
-| GET | `/docker/containers/{id}` | Einzelner Container |
-| POST | `/docker/containers/{id}/start` | Container starten |
-| POST | `/docker/containers/{id}/stop` | Container stoppen |
-| DELETE | `/docker/containers/{id}` | Container löschen (`?force=true`) |
-| POST | `/docker/containers/{id}/reinstall` | Image pullen + neu erstellen |
-| GET | `/docker/images` | Lokale Images |
-| WS | `/docker/logs/{id}?token=JWT` | Live Log-Stream |
+| GET | `/docker/containers` | All containers (running + stopped) |
+| GET | `/docker/containers/{id}` | Single container detail |
+| POST | `/docker/containers/{id}/start\|stop\|restart` | Lifecycle control |
+| DELETE | `/docker/containers/{id}` | Remove container (`?force=true`) |
+| POST | `/docker/containers/{id}/reinstall` | Pull new image → recreate |
+| GET | `/docker/images` | Local images list |
+| GET | `/docker/containers/{id}/stats` | Live CPU% + memory |
+| WS | `/docker/logs/{id}?token=JWT` | Live log stream |
+
+### Other modules
+- **`/api/v1/firewall`** — UFW status, enable/disable, add/delete rules (admin)
+- **`/api/v1/ssl`** — Let's Encrypt certificate expiry list
+- **`/api/v1/cron`** — Read, add, delete crontab entries (admin for write)
+- **`/api/v1/files`** — Full filesystem browser + read/write (no path restrictions)
+- **`/api/v1/notifications`** — Telegram + SMTP config + test send (admin)
+- **`/api/v1/settings/services`** — Monitored-service CRUD (admin)
+- **`/api/v1/users`** — User management (admin)
+- **`WS /logs/stream`** — Live journalctl stream for the server-iq service itself
+- **`WS /console`** — PTY bash shell via WebSocket
 
 ---
 
-## Schlüssel-Entscheidungen & Hinweise
+## Key Decisions & Notes
 
-- **Docker Socket**: Backend mountet `/var/run/docker.sock` read-write. FastAPI läuft als Non-Root-User im Container.
-- **Container-ID-Validierung**: Alle Container-IDs werden gegen `[a-f0-9]{12,64}` validiert bevor sie an docker-py übergeben werden.
-- **WebSocket-Auth**: JWT kann nicht im Header gesendet werden → wird als `?token=` Query-Parameter übergeben.
-- **Token-Refresh**: Axios-Interceptor in `api/client.ts` fängt 401-Fehler ab, refresht automatisch und wiederholt den Original-Request.
-- **First-Run-Setup**: `App.tsx` prüft beim Start `GET /auth/setup`. Ist `setup_required: true`, wird auf `/setup` umgeleitet. Der Setup-Endpoint ist nach dem ersten User gesperrt (HTTP 409).
-- **PostgreSQL-Verbindung**: Docker-Container erreichen Host-Postgres über `host.docker.internal` (in docker-compose als `host-gateway` konfiguriert).
-- **Ports**: Keine doppelten Ports auf dem VPS — 8100 und 8101 waren laut `ss -tulnp` frei.
-- **nginx**: Der Host-nginx verwaltet bereits Port 80/443. Unser Server-Block wird per CI/CD nach `/etc/nginx/sites-available/server-iq.conf` deployed und verlinkt.
-- **Variablen-Substitution in nginx**: `${BACKEND_PORT}` und `${FRONTEND_PORT}` werden im Deploy-Schritt per `sed` durch echte Werte aus `.env` ersetzt.
+- **Bare-metal service**: Runs as a systemd service (`server-iq.service`) directly on the VPS host as `root` — no Docker involved at the application layer.
+- **Service unit deployed on every CI/CD run**: `sudo cp server-iq.service /etc/systemd/system/ && sudo systemctl daemon-reload` ensures unit file changes take effect automatically.
+- **Container ID validation**: All container IDs are validated against `[a-f0-9]{12,64}` before passing to aiodocker.
+- **Service key validation**: Service keys validated against `^[a-zA-Z0-9._@-]{1,64}$` before subprocess calls.
+- **WebSocket auth**: JWT cannot be sent in headers from the browser WS API → passed as `?token=` query parameter.
+- **Token refresh**: Axios interceptor in `api/client.ts` catches 401 errors, refreshes automatically, and retries the original request.
+- **First-run setup**: `App.tsx` calls `GET /auth/setup` on startup. If `setup_required: true`, redirects to `/setup`. The endpoint is locked after the first user is created (HTTP 409).
+- **Email normalization**: Emails are stored and looked up in lowercase at all code paths (setup, login, create user, update user).
+- **Monitored services**: Stored in the `monitored_services` DB table, managed via the Settings page. Default services seeded on first start: `nginx`, `postgresql`, `ssh`, `docker`.
+- **Background tasks**: Two asyncio tasks started in FastAPI lifespan: metric snapshot collector (every 60 s) and notification monitor (configurable interval, default 5 min).
+- **subprocess safety**: All subprocess calls use list form (`shell=False`). No user input passed to shell.
+- **File browser**: No path restrictions — entire filesystem accessible. `os.path.realpath()` used for symlink normalization. Write endpoint requires admin role.
+- **Health check thresholds**: ≥80% → Warning, ≥90% → Critical for disk and memory; load ≥ CPU count → Warning.
+- **Network display**: Network throughput always shown in KB/s on the Dashboard (not auto-scaled).
+- **Email (SMTP)**: For local Postfix — host `localhost`, port `25`, leave username and password empty.
+- **`npm ci` in CI/CD**: Requires a committed `package-lock.json`. Always run `npm install` locally after adding frontend dependencies and commit the updated lockfile.
 
 ---
 
-## CI/CD-Pipeline (GitHub Actions)
+## CI/CD Pipeline (GitHub Actions)
 
-**Trigger**: Push auf `main`
+**Trigger**: push to `main`
 
-**Jobs**:
-1. `build-and-push`: Baut Backend- und Frontend-Docker-Images, pusht sie zu GHCR
-2. `deploy`:
-   - Lädt `nginx/server-iq.conf` per SCP auf den VPS
-   - Zieht neue Images
-   - Startet Container neu via `docker compose up -d`
-   - Substituiert Port-Variablen in nginx-Config
-   - Verlinkt Config und ruft `sudo nginx -t && sudo systemctl reload nginx` auf
+**Steps**:
+1. Pre-flight check — abort if `/opt/server-iq` does not exist
+2. `git pull` using ephemeral `GITHUB_TOKEN` as `GIT_TOKEN` env var
+3. Backend — `pip install -r requirements.txt`, copy service unit, `daemon-reload`, `systemctl restart`
+4. Frontend — `npm ci`, `npm run build`
+5. nginx — copy config, symlink, `nginx -t && systemctl reload nginx`
 
 **Required GitHub Secrets**:
-| Secret | Beschreibung |
+| Secret | Value |
 |---|---|
 | `VPS_HOST` | `217.154.199.218` |
-| `VPS_USER` | `deploy` |
-| `VPS_SSH_KEY` | Privater ED25519-Key des deploy-Users |
+| `VPS_USER` | `root` |
+| `VPS_SSH_KEY` | Private ED25519 key for root |
 
 ---
 
-## Lokale Entwicklung
+## Local Development
 
 ### Backend
 ```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp ../.env.example .env   # anpassen
-uvicorn app.main:app --reload --port 8000
+cp ../.env.example .env   # adjust values
+uvicorn app.main:app --reload --port 8100
 ```
 
 ### Frontend
 ```bash
 cd frontend
 npm install
-npm run dev   # Proxy auf localhost:8100 (BACKEND_PORT)
-```
-
-### Zusammen (docker-compose lokal)
-```bash
-cp .env.example .env   # anpassen
-docker compose up --build
+npm run dev   # proxies /api to localhost:8100
 ```
 
 ---
 
-## Überwachte Services
+## Security Notes
 
-Definiert in `backend/app/system/service.py` → `MONITORED_SERVICES`:
-```python
-MONITORED_SERVICES = [
-    ("nginx", "NGINX"),
-    ("postgresql", "PostgreSQL"),
-    ("docker", "Docker"),
-    ("ssh", "SSH"),
-]
-```
-
-Weitere Services können hier ergänzt werden — sie erscheinen automatisch auf der Services-Seite.
-
----
-
-## Sicherheitshinweise
-
-- `.env` darf **nie** ins Repository committet werden (steht in `.gitignore`)
-- `SECRET_KEY` immer mit `openssl rand -hex 32` generieren
-- Rate-Limiting auf Login/Setup: 5 Requests/Minute pro IP (slowapi)
-- HSTS, X-Frame-Options, X-Content-Type-Options sind im nginx-Block gesetzt
-- Der deploy-User hat nur minimale sudo-Rechte (nur 4 spezifische Befehle, NOPASSWD)
+- `.env` must **never** be committed to the repository (listed in `.gitignore`)
+- Always generate `SECRET_KEY` with `openssl rand -hex 32`
+- Rate limiting on login and setup: 5 requests/min per IP (slowapi)
+- HSTS, X-Frame-Options DENY, X-Content-Type-Options set in nginx config
+- The service runs as `root` — required for systemctl, journalctl, ufw, crontab, and file write operations
