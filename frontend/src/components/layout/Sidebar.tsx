@@ -7,11 +7,11 @@ const NAV = [
   { to: "/health",     label: "Health",      icon: "🩺" },
   { to: "/services",   label: "Services",    icon: "⚡" },
   { to: "/containers", label: "Container",   icon: "🐳" },
-  { to: "/console",    label: "Konsole",     icon: ">_" },
   { to: "/firewall",   label: "Firewall",    icon: "🛡" },
   { to: "/ssl",        label: "SSL Certs",   icon: "🔒" },
   { to: "/cron",       label: "Cron Jobs",   icon: "⏰" },
   { to: "/files",      label: "Dateien",     icon: "📂" },
+  { to: "/console",    label: "Konsole",     icon: ">_" },
 ];
 
 const ADMIN_NAV = [
