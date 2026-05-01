@@ -37,10 +37,10 @@ export default function AppLogsPage() {
   return (
     <div className="p-4 md:p-6 flex flex-col h-[calc(100vh-5rem)] md:h-screen">
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-        <h1 className="text-xl font-bold">Anwendungs-Logs</h1>
+        <h1 className="text-xl font-bold">Application Logs</h1>
         <div className="flex items-center gap-3">
           <span className={`text-xs font-medium ${connected ? "text-emerald-400" : "text-red-400"}`}>
-            {connected ? "● Live" : "○ Getrennt"}
+            {connected ? "● Live" : "○ Disconnected"}
           </span>
           <label className="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer select-none">
             <input
@@ -55,14 +55,14 @@ export default function AppLogsPage() {
             onClick={() => setLines([])}
             className="btn-ghost text-xs py-1 px-2"
           >
-            Leeren
+            Clear
           </button>
         </div>
       </div>
 
       <div className="flex-1 bg-slate-950 rounded-lg font-mono text-xs overflow-auto p-3 min-h-0 border border-slate-700/50">
         {lines.length === 0 ? (
-          <p className="text-slate-600">{connected ? "Warte auf Logs…" : "Verbinde…"}</p>
+          <p className="text-slate-600">{connected ? "Waiting for logs…" : "Connecting…"}</p>
         ) : (
           lines.map((line, i) => (
             <div

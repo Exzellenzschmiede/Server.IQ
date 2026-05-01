@@ -6,7 +6,7 @@ const NAV = [
   { to: "/services",   label: "Services",  icon: "⚡", mono: false },
   { to: "/containers", label: "Container", icon: "🐳", mono: false },
   { to: "/firewall",   label: "Firewall",  icon: "🛡", mono: false },
-  { to: "/console",    label: "Konsole",   icon: ">_", mono: true  },
+  { to: "/console",    label: "Console",   icon: ">_", mono: true  },
 ];
 
 export default function BottomNav() {

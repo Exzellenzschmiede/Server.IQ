@@ -19,7 +19,7 @@ export default function LoginPage() {
       await login(email, password);
       navigate("/", { replace: true });
     } catch {
-      setError("E-Mail oder Passwort ungültig");
+      setError("Invalid email or password");
     } finally {
       setLoading(false);
     }
@@ -35,13 +35,13 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs text-slate-400 mb-1">E-Mail</label>
+            <label className="block text-xs text-slate-400 mb-1">Email</label>
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
               required autoFocus
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Passwort</label>
+            <label className="block text-xs text-slate-400 mb-1">Password</label>
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
               required
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
@@ -50,7 +50,7 @@ export default function LoginPage() {
           {error && <p className="text-xs text-red-400">{error}</p>}
 
           <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-2">
-            {loading ? <Spinner size="sm" /> : "Anmelden"}
+            {loading ? <Spinner size="sm" /> : "Sign in"}
           </button>
         </form>
       </div>

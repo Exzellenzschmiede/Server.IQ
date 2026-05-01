@@ -68,7 +68,7 @@ function LogModal({ serviceKey, onClose }: { serviceKey: string; onClose: () => 
               <div key={i} className={lineColor(line)}>{line}</div>
             ))
           ) : (
-            <p className="text-slate-500 text-center pt-8">Keine Log-Einträge</p>
+            <p className="text-slate-500 text-center pt-8">No log entries</p>
           )}
           <div ref={bottomRef} />
         </div>
@@ -90,10 +90,10 @@ function ServiceRow({ service, isAdmin, onRefresh }: { service: ServiceStatus; i
     setFeedback(null);
     try {
       const res = await serviceAction(service.name, action);
-      setFeedback({ ok: res.success, msg: res.success ? `${action} erfolgreich` : res.message });
+      setFeedback({ ok: res.success, msg: res.success ? `${action} successful` : res.message });
       setTimeout(() => { onRefresh(); setDetail(null); }, 1200);
     } catch {
-      setFeedback({ ok: false, msg: "Fehler beim Ausführen" });
+      setFeedback({ ok: false, msg: "Error executing action" });
     } finally {
       setPending(null);
       setTimeout(() => setFeedback(null), 4000);
@@ -165,14 +165,14 @@ function ServiceRow({ service, isAdmin, onRefresh }: { service: ServiceStatus; i
             ) : detail ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1.5">
                 {[
-                  ["Beschreibung", detail.description],
-                  ["Zustand", `${detail.active_state} (${detail.sub_state})`],
-                  ["Unit-Datei", detail.unit_file_state],
+                  ["Description", detail.description],
+                  ["State", `${detail.active_state} (${detail.sub_state})`],
+                  ["Unit file", detail.unit_file_state],
                   ["PID", detail.main_pid ?? "—"],
-                  ["Speicher", detail.memory_bytes ? formatBytes(detail.memory_bytes) : "—"],
-                  ["CPU-Zeit", detail.cpu_usage_ms ? `${(detail.cpu_usage_ms / 1000).toFixed(1)} s` : "—"],
-                  ["Aktiv seit", detail.active_since ?? "—"],
-                  ["Unit-Datei Pfad", detail.fragment_path ?? "—"],
+                  ["Memory", detail.memory_bytes ? formatBytes(detail.memory_bytes) : "—"],
+                  ["CPU time", detail.cpu_usage_ms ? `${(detail.cpu_usage_ms / 1000).toFixed(1)} s` : "—"],
+                  ["Active since", detail.active_since ?? "—"],
+                  ["Unit file path", detail.fragment_path ?? "—"],
                 ].map(([label, val]) => (
                   <div key={label as string}>
                     <span className="text-slate-500">{label}: </span>
@@ -213,7 +213,7 @@ export default function ServicesPage() {
         <h1 className="text-xl font-bold">Services</h1>
         <div className="flex items-center gap-3">
           {lastChecked && (
-            <span className="text-xs text-slate-500">Geprüft {lastChecked.toLocaleTimeString()}</span>
+            <span className="text-xs text-slate-500">Checked {lastChecked.toLocaleTimeString()}</span>
           )}
           <button onClick={refresh} disabled={loading} className="btn-ghost">Refresh</button>
         </div>
@@ -221,9 +221,9 @@ export default function ServicesPage() {
 
       <div className="card divide-y divide-slate-700/50">
         {loading && services.length === 0 ? (
-          <p className="py-8 text-center text-slate-500 text-sm">Laden…</p>
+          <p className="py-8 text-center text-slate-500 text-sm">Loading…</p>
         ) : services.length === 0 ? (
-          <p className="py-8 text-center text-slate-500 text-sm">Keine Services gefunden</p>
+          <p className="py-8 text-center text-slate-500 text-sm">No services found</p>
         ) : (
           services.map((s) => (
             <ServiceRow key={s.name} service={s} isAdmin={!!user?.is_admin} onRefresh={refresh} />

@@ -4,8 +4,8 @@ import type { HealthReport, HealthStatus } from "../types/system";
 
 const STATUS_STYLES: Record<HealthStatus, { dot: string; badge: string; label: string }> = {
   ok:       { dot: "bg-emerald-400", badge: "bg-emerald-600/20 text-emerald-300 border-emerald-500/30", label: "OK" },
-  warning:  { dot: "bg-yellow-400",  badge: "bg-yellow-600/20 text-yellow-300 border-yellow-500/30",   label: "Warnung" },
-  critical: { dot: "bg-red-400",     badge: "bg-red-600/20 text-red-300 border-red-500/30",             label: "Kritisch" },
+  warning:  { dot: "bg-yellow-400",  badge: "bg-yellow-600/20 text-yellow-300 border-yellow-500/30",   label: "Warning" },
+  critical: { dot: "bg-red-400",     badge: "bg-red-600/20 text-red-300 border-red-500/30",             label: "Critical" },
 };
 
 function StatusBadge({ status }: { status: HealthStatus }) {
@@ -47,7 +47,7 @@ export default function HealthPage() {
         <h1 className="text-xl font-bold">System Health</h1>
         <div className="flex items-center gap-3">
           {lastChecked && (
-            <span className="text-xs text-slate-500">Geprüft {lastChecked.toLocaleTimeString()}</span>
+            <span className="text-xs text-slate-500">Checked {lastChecked.toLocaleTimeString()}</span>
           )}
           <button onClick={load} disabled={loading} className="btn-ghost">Refresh</button>
         </div>
@@ -59,25 +59,25 @@ export default function HealthPage() {
           <span className={`w-4 h-4 rounded-full flex-shrink-0 ${overallStyle.dot}`} />
           <div>
             <p className="font-semibold">
-              Gesamtstatus: {overallStyle.label}
+              Overall status: {overallStyle.label}
             </p>
             <p className="text-xs opacity-75">
               {report.checks.filter((c) => c.status !== "ok").length === 0
-                ? "Alle Checks bestanden"
-                : `${report.checks.filter((c) => c.status === "critical").length} kritisch, ${report.checks.filter((c) => c.status === "warning").length} Warnungen`}
+                ? "All checks passed"
+                : `${report.checks.filter((c) => c.status === "critical").length} critical, ${report.checks.filter((c) => c.status === "warning").length} warnings`}
             </p>
           </div>
           {report.updates_available !== null && report.updates_available > 0 && (
             <div className="ml-auto text-right">
               <p className="text-sm font-semibold">{report.updates_available}</p>
-              <p className="text-xs opacity-75">Updates verfügbar</p>
+              <p className="text-xs opacity-75">updates available</p>
             </div>
           )}
         </div>
       )}
 
       {loading && !report && (
-        <div className="card text-center py-12 text-slate-500">Lade Health-Daten…</div>
+        <div className="card text-center py-12 text-slate-500">Loading health data…</div>
       )}
 
       {/* Check cards */}

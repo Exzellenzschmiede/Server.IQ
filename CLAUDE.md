@@ -26,6 +26,8 @@ A push to `main` automatically triggers CI/CD deployment to the VPS.
 
 **After every completed prompt: review `README.md` and all files in `docs/` and update any outdated or missing information before committing.**
 
+**Language: The entire application must be in English.** This includes all UI text, error messages, log output, backend response messages, comments, and documentation. Do not introduce German or any other language.
+
 ---
 
 ## Infrastructure

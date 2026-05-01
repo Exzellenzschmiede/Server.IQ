@@ -25,7 +25,7 @@ export default function FirewallPage() {
       setStatus(await getFirewallStatus());
       setError(null);
     } catch {
-      setError("Firewall-Status konnte nicht geladen werden");
+      setError("Could not load firewall status");
     } finally {
       setLoading(false);
     }
@@ -44,10 +44,10 @@ export default function FirewallPage() {
     try {
       const fn = status.enabled ? disableFirewall : enableFirewall;
       const r = await fn();
-      flash(r.message || (status.enabled ? "Firewall deaktiviert" : "Firewall aktiviert"));
+      flash(r.message || (status.enabled ? "Firewall disabled" : "Firewall enabled"));
       await reload();
     } catch (e: unknown) {
-      flash((e as Error).message ?? "Fehler");
+      flash((e as Error).message ?? "Error");
     } finally {
       setBusy(false);
     }
@@ -59,11 +59,11 @@ export default function FirewallPage() {
     setBusy(true);
     try {
       const r = await addFirewallRule(port.trim(), protocol, action);
-      flash(r.message || "Regel hinzugefügt");
+      flash(r.message || "Rule added");
       setPort("");
       await reload();
     } catch (e: unknown) {
-      flash((e as Error).message ?? "Fehler");
+      flash((e as Error).message ?? "Error");
     } finally {
       setBusy(false);
     }
@@ -73,10 +73,10 @@ export default function FirewallPage() {
     setBusy(true);
     try {
       const r = await deleteFirewallRule(num);
-      flash(r.message || "Regel gelöscht");
+      flash(r.message || "Rule deleted");
       await reload();
     } catch (e: unknown) {
-      flash((e as Error).message ?? "Fehler");
+      flash((e as Error).message ?? "Error");
     } finally {
       setBusy(false);
     }
@@ -96,7 +96,7 @@ export default function FirewallPage() {
                 : "bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30"
             }`}
           >
-            {status.enabled ? "Deaktivieren" : "Aktivieren"}
+            {status.enabled ? "Disable" : "Enable"}
           </button>
         )}
       </div>
@@ -107,7 +107,7 @@ export default function FirewallPage() {
 
       {status?.error && (
         <div className="card bg-red-600/10 border border-red-500/30 text-red-400 text-sm">
-          ufw-Fehler: {status.error}
+          ufw error: {status.error}
         </div>
       )}
 
@@ -117,27 +117,27 @@ export default function FirewallPage() {
             className={`inline-block w-2 h-2 rounded-full ${status.enabled ? "bg-emerald-400" : "bg-slate-500"}`}
           />
           <span className="text-sm text-slate-300">
-            UFW {status.enabled ? "aktiv" : "inaktiv"}
+            UFW {status.enabled ? "active" : "inactive"}
           </span>
-          <span className="text-xs text-slate-500">· {status.rules.length} Regeln</span>
+          <span className="text-xs text-slate-500">· {status.rules.length} rules</span>
         </div>
       )}
 
       {/* Add rule form */}
       <div className="card">
-        <h2 className="text-sm font-semibold text-slate-300 mb-3">Neue Regel</h2>
+        <h2 className="text-sm font-semibold text-slate-300 mb-3">New Rule</h2>
         <form onSubmit={handleAddRule} className="flex flex-wrap gap-2 items-end">
           <div className="flex flex-col gap-1">
             <label className="text-xs text-slate-500">Port</label>
             <input
               value={port}
               onChange={(e) => setPort(e.target.value)}
-              placeholder="z.B. 8080"
+              placeholder="e.g. 8080"
               className="bg-slate-700 text-sm text-slate-200 rounded px-3 py-1.5 border border-slate-600 focus:outline-none focus:border-indigo-500 w-28"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-slate-500">Protokoll</label>
+            <label className="text-xs text-slate-500">Protocol</label>
             <select
               value={protocol}
               onChange={(e) => setProtocol(e.target.value)}
@@ -145,11 +145,11 @@ export default function FirewallPage() {
             >
               <option value="tcp">TCP</option>
               <option value="udp">UDP</option>
-              <option value="any">Beide</option>
+              <option value="any">Both</option>
             </select>
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-slate-500">Aktion</label>
+            <label className="text-xs text-slate-500">Action</label>
             <select
               value={action}
               onChange={(e) => setAction(e.target.value)}
@@ -165,28 +165,28 @@ export default function FirewallPage() {
             disabled={busy || !port}
             className="px-4 py-1.5 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 disabled:opacity-50 transition-colors"
           >
-            Hinzufügen
+            Add
           </button>
         </form>
       </div>
 
       {/* Rules list */}
       <div className="card overflow-x-auto">
-        <h2 className="text-sm font-semibold text-slate-300 mb-3">Regeln</h2>
+        <h2 className="text-sm font-semibold text-slate-300 mb-3">Rules</h2>
         {loading ? (
-          <p className="text-sm text-slate-500">Lade…</p>
+          <p className="text-sm text-slate-500">Loading…</p>
         ) : error ? (
           <p className="text-sm text-red-400">{error}</p>
         ) : status && status.rules.length === 0 ? (
-          <p className="text-sm text-slate-500">Keine Regeln definiert</p>
+          <p className="text-sm text-slate-500">No rules defined</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-slate-500 border-b border-slate-700">
                 <th className="pb-2 pr-4">#</th>
-                <th className="pb-2 pr-4">An (Port/Service)</th>
-                <th className="pb-2 pr-4">Aktion</th>
-                <th className="pb-2 pr-4">Von</th>
+                <th className="pb-2 pr-4">To (Port/Service)</th>
+                <th className="pb-2 pr-4">Action</th>
+                <th className="pb-2 pr-4">From</th>
                 <th className="pb-2" />
               </tr>
             </thead>
@@ -213,7 +213,7 @@ export default function FirewallPage() {
                       disabled={busy}
                       className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors"
                     >
-                      Löschen
+                      Delete
                     </button>
                   </td>
                 </tr>

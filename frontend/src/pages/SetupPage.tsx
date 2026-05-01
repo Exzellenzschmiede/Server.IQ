@@ -15,8 +15,8 @@ export default function SetupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (form.password !== form.confirm) { setError("Passwörter stimmen nicht überein"); return; }
-    if (form.password.length < 8) { setError("Passwort muss mindestens 8 Zeichen haben"); return; }
+    if (form.password !== form.confirm) { setError("Passwords do not match"); return; }
+    if (form.password.length < 8) { setError("Password must be at least 8 characters"); return; }
     setLoading(true);
     try {
       const tokens = await createAdmin(form.name, form.email, form.password);
@@ -24,7 +24,7 @@ export default function SetupPage() {
       localStorage.setItem("refresh_token", tokens.refresh_token);
       navigate("/", { replace: true });
     } catch {
-      setError("Setup fehlgeschlagen. Bitte erneut versuchen.");
+      setError("Setup failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -35,7 +35,7 @@ export default function SetupPage() {
       <div className="card w-full max-w-sm space-y-6">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-indigo-400">Server.IQ</h1>
-          <p className="text-sm text-slate-400 mt-1">Admin-Account einrichten</p>
+          <p className="text-sm text-slate-400 mt-1">Set up admin account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -45,17 +45,17 @@ export default function SetupPage() {
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">E-Mail (Login)</label>
+            <label className="block text-xs text-slate-400 mb-1">Email (login)</label>
             <input type="email" value={form.email} onChange={set("email")} required
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Passwort</label>
+            <label className="block text-xs text-slate-400 mb-1">Password</label>
             <input type="password" value={form.password} onChange={set("password")} required minLength={8}
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Passwort bestätigen</label>
+            <label className="block text-xs text-slate-400 mb-1">Confirm password</label>
             <input type="password" value={form.confirm} onChange={set("confirm")} required
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
           </div>
@@ -63,7 +63,7 @@ export default function SetupPage() {
           {error && <p className="text-xs text-red-400">{error}</p>}
 
           <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-2">
-            {loading ? <Spinner size="sm" /> : "Account anlegen"}
+            {loading ? <Spinner size="sm" /> : "Create account"}
           </button>
         </form>
       </div>

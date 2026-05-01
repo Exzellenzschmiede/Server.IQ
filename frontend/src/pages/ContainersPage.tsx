@@ -82,7 +82,7 @@ function ContainerCard({
 
             {container.networks.length > 0 && (
               <div>
-                <span className="text-slate-500">Netzwerk: </span>
+                <span className="text-slate-500">Network: </span>
                 {container.networks.join(", ")}
               </div>
             )}
@@ -96,7 +96,7 @@ function ContainerCard({
 
             {container.started_at && (
               <div>
-                <span className="text-slate-500">Gestartet: </span>
+                <span className="text-slate-500">Started: </span>
                 {new Date(container.started_at).toLocaleString()}
               </div>
             )}
@@ -177,7 +177,7 @@ export default function ContainersPage() {
       <div className="flex flex-col sm:flex-row gap-2">
         <input
           type="text"
-          placeholder="Suche nach Name oder Image…"
+          placeholder="Search by name or image…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-indigo-500"
@@ -200,11 +200,11 @@ export default function ContainersPage() {
       </div>
 
       {loading && !data ? (
-        <p className="text-center text-slate-500 py-10 text-sm">Container werden geladen…</p>
+        <p className="text-center text-slate-500 py-10 text-sm">Loading containers…</p>
       ) : error ? (
         <p className="text-center text-red-400 py-10 text-sm">{error}</p>
       ) : containers.length === 0 ? (
-        <p className="text-center text-slate-500 py-10 text-sm">Keine Container gefunden</p>
+        <p className="text-center text-slate-500 py-10 text-sm">No containers found</p>
       ) : (
         <div className="space-y-3">
           {containers.map((c) => (

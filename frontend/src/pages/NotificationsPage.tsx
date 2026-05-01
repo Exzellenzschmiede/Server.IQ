@@ -89,9 +89,9 @@ export default function NotificationsPage() {
     try {
       const updated = await updateNotificationConfig(cfg);
       setCfg(updated);
-      flash("Einstellungen gespeichert", true);
+      flash("Settings saved", true);
     } catch {
-      flash("Fehler beim Speichern", false);
+      flash("Error saving settings", false);
     } finally {
       setSaving(false);
     }
@@ -101,22 +101,22 @@ export default function NotificationsPage() {
     setTesting(channel);
     try {
       const r = await testNotification(channel);
-      flash(r.success ? `Test-Nachricht gesendet (${channel})` : "Senden fehlgeschlagen", r.success);
+      flash(r.success ? `Test message sent (${channel})` : "Failed to send", r.success);
     } catch (e: unknown) {
       const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      flash(detail ?? "Fehler beim Senden", false);
+      flash(detail ?? "Error sending test message", false);
     } finally {
       setTesting(null);
     }
   }
 
   if (loading || !cfg) {
-    return <div className="p-6 text-sm text-slate-500">Lade…</div>;
+    return <div className="p-6 text-sm text-slate-500">Loading…</div>;
   }
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-2xl">
-      <h1 className="text-xl font-bold">Benachrichtigungen</h1>
+      <h1 className="text-xl font-bold">Notifications</h1>
 
       {msg && (
         <div
@@ -132,21 +132,21 @@ export default function NotificationsPage() {
 
       {/* General settings */}
       <div className="card space-y-4">
-        <h2 className="text-sm font-semibold text-slate-300">Allgemein</h2>
+        <h2 className="text-sm font-semibold text-slate-300">General</h2>
         <Field
-          label="Prüfintervall (Minuten)"
+          label="Check interval (minutes)"
           value={cfg.check_interval_minutes}
           onChange={(v) => update("check_interval_minutes", parseInt(v) || 5)}
           type="number"
           placeholder="5"
         />
         <Toggle
-          label="Benachrichtigung bei Ausfall"
+          label="Notify on failure"
           checked={cfg.notify_on_failure}
           onChange={(v) => update("notify_on_failure", v)}
         />
         <Toggle
-          label="Benachrichtigung bei Wiederherstellung"
+          label="Notify on recovery"
           checked={cfg.notify_on_recovery}
           onChange={(v) => update("notify_on_recovery", v)}
         />
@@ -157,7 +157,7 @@ export default function NotificationsPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-slate-300">Telegram</h2>
           <Toggle
-            label="Aktiviert"
+            label="Enabled"
             checked={cfg.telegram_enabled}
             onChange={(v) => update("telegram_enabled", v)}
           />
@@ -179,22 +179,22 @@ export default function NotificationsPage() {
           disabled={testing !== null || !cfg.telegram_bot_token}
           className="px-3 py-1.5 text-sm bg-sky-600/20 text-sky-400 rounded hover:bg-sky-600/30 disabled:opacity-50 transition-colors"
         >
-          {testing === "telegram" ? "Sende…" : "Test senden"}
+          {testing === "telegram" ? "Sending…" : "Send test"}
         </button>
       </div>
 
       {/* Email */}
       <div className="card space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-300">E-Mail (SMTP)</h2>
+          <h2 className="text-sm font-semibold text-slate-300">Email (SMTP)</h2>
           <Toggle
-            label="Aktiviert"
+            label="Enabled"
             checked={cfg.email_enabled}
             onChange={(v) => update("email_enabled", v)}
           />
         </div>
         <p className="text-xs text-slate-500">
-          Lokales Postfix: Host <code className="text-slate-400">localhost</code>, Port <code className="text-slate-400">25</code>, Benutzername + Passwort leer lassen.
+          Local Postfix: host <code className="text-slate-400">localhost</code>, port <code className="text-slate-400">25</code>, leave username and password empty.
         </p>
         <div className="grid grid-cols-2 gap-3">
           <Field
@@ -211,26 +211,26 @@ export default function NotificationsPage() {
             placeholder="25"
           />
           <Field
-            label="Benutzername"
+            label="Username"
             value={cfg.email_smtp_user ?? ""}
             onChange={(v) => update("email_smtp_user", v || null)}
             placeholder="user@example.com"
           />
           <Field
-            label="Passwort"
+            label="Password"
             value={cfg.email_smtp_password ?? ""}
             onChange={(v) => update("email_smtp_password", v || null)}
             type="password"
             placeholder="••••••••"
           />
           <Field
-            label="Absender (Von)"
+            label="From address"
             value={cfg.email_from ?? ""}
             onChange={(v) => update("email_from", v || null)}
             placeholder="server-iq@example.com"
           />
           <Field
-            label="Empfänger (An)"
+            label="To address"
             value={cfg.email_to ?? ""}
             onChange={(v) => update("email_to", v || null)}
             placeholder="admin@example.com"
@@ -241,7 +241,7 @@ export default function NotificationsPage() {
           disabled={testing !== null || !cfg.email_smtp_host}
           className="px-3 py-1.5 text-sm bg-sky-600/20 text-sky-400 rounded hover:bg-sky-600/30 disabled:opacity-50 transition-colors"
         >
-          {testing === "email" ? "Sende…" : "Test senden"}
+          {testing === "email" ? "Sending…" : "Send test"}
         </button>
       </div>
 
@@ -250,7 +250,7 @@ export default function NotificationsPage() {
         disabled={saving}
         className="w-full py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
       >
-        {saving ? "Speichert…" : "Einstellungen speichern"}
+        {saving ? "Saving…" : "Save settings"}
       </button>
     </div>
   );

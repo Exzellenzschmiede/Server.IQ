@@ -381,7 +381,7 @@ def get_health() -> HealthReport:
             name=f"Disk {part.mountpoint}",
             status=s,
             value=f"{part.percent:.1f}%",
-            detail=f"{_fmt_bytes(part.free_bytes)} frei von {_fmt_bytes(part.total_bytes)}",
+            detail=f"{_fmt_bytes(part.free_bytes)} free of {_fmt_bytes(part.total_bytes)}",
         ))
 
     # Memory
@@ -393,7 +393,7 @@ def get_health() -> HealthReport:
     else:
         ms = "ok"
     checks.append(HealthCheck(
-        name="Arbeitsspeicher",
+        name="Memory",
         status=ms,
         value=f"{mem.percent:.1f}%",
         detail=f"{_fmt_bytes(mem.used_bytes)} / {_fmt_bytes(mem.total_bytes)}",
@@ -412,7 +412,7 @@ def get_health() -> HealthReport:
         name="CPU Load (1 min)",
         status=ls,
         value=str(load.load_1),
-        detail=f"{cpu_count} CPU-Kerne",
+        detail=f"{cpu_count} CPU cores",
     ))
 
     # Updates
@@ -425,9 +425,9 @@ def get_health() -> HealthReport:
         else:
             us = "ok"
         checks.append(HealthCheck(
-            name="System-Updates",
+            name="System Updates",
             status=us,
-            value=f"{updates} ausstehend" if updates > 0 else "Aktuell",
+            value=f"{updates} pending" if updates > 0 else "Up to date",
             detail="apt upgradable packages",
         ))
 

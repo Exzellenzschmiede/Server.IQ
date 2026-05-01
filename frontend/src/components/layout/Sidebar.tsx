@@ -6,19 +6,19 @@ const NAV = [
   { to: "/",           label: "Dashboard",   icon: "▣" },
   { to: "/health",     label: "Health",      icon: "🩺" },
   { to: "/services",   label: "Services",    icon: "⚡" },
-  { to: "/containers", label: "Container",   icon: "🐳" },
+  { to: "/containers", label: "Containers",  icon: "🐳" },
   { to: "/firewall",   label: "Firewall",    icon: "🛡" },
   { to: "/ssl",        label: "SSL Certs",   icon: "🔒" },
   { to: "/cron",       label: "Cron Jobs",   icon: "⏰" },
-  { to: "/files",      label: "Dateien",     icon: "📂" },
-  { to: "/console",    label: "Konsole",     icon: ">_" },
+  { to: "/files",      label: "Files",       icon: "📂" },
+  { to: "/console",    label: "Console",     icon: ">_" },
 ];
 
 const ADMIN_NAV = [
-  { to: "/notifications", label: "Benachrichtigungen", icon: "🔔" },
-  { to: "/users",         label: "Benutzer",           icon: "👥" },
-  { to: "/settings",      label: "Einstellungen",      icon: "🔧" },
-  { to: "/logs",          label: "App-Logs",           icon: "📋" },
+  { to: "/notifications", label: "Notifications", icon: "🔔" },
+  { to: "/users",         label: "Users",          icon: "👥" },
+  { to: "/settings",      label: "Settings",       icon: "🔧" },
+  { to: "/logs",          label: "App Logs",        icon: "📋" },
 ];
 
 export default function Sidebar() {

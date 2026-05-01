@@ -3,11 +3,11 @@ import { addCronJob, deleteCronJob, getCronJobs } from "../api/cron";
 import type { CronJob } from "../types/cron";
 
 const PRESETS = [
-  { label: "Täglich 2:00 Uhr", value: "0 2 * * *" },
-  { label: "Stündlich",          value: "0 * * * *" },
-  { label: "Alle 15 Minuten",    value: "*/15 * * * *" },
-  { label: "Wöchentlich Mo 3:00",value: "0 3 * * 1" },
-  { label: "Monatlich 1. 4:00",  value: "0 4 1 * *" },
+  { label: "Daily 2:00 AM",      value: "0 2 * * *" },
+  { label: "Hourly",             value: "0 * * * *" },
+  { label: "Every 15 minutes",   value: "*/15 * * * *" },
+  { label: "Weekly Mon 3:00 AM", value: "0 3 * * 1" },
+  { label: "Monthly 1st 4:00 AM",value: "0 4 1 * *" },
 ];
 
 export default function CronPage() {
@@ -27,7 +27,7 @@ export default function CronPage() {
       setJobs(r.jobs);
       setError(null);
     } catch {
-      setError("Crontab konnte nicht geladen werden");
+      setError("Could not load crontab");
     } finally {
       setLoading(false);
     }
@@ -46,12 +46,12 @@ export default function CronPage() {
     setBusy(true);
     try {
       await addCronJob(schedule.trim(), command.trim());
-      flash("Job hinzugefügt");
+      flash("Job added");
       setSchedule("");
       setCommand("");
       await reload();
     } catch (err: unknown) {
-      flash((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? "Fehler beim Hinzufügen");
+      flash((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? "Error adding job");
     } finally {
       setBusy(false);
     }
@@ -61,10 +61,10 @@ export default function CronPage() {
     setBusy(true);
     try {
       await deleteCronJob(index);
-      flash("Job gelöscht");
+      flash("Job deleted");
       await reload();
     } catch {
-      flash("Fehler beim Löschen");
+      flash("Error deleting job");
     } finally {
       setBusy(false);
     }
@@ -73,7 +73,7 @@ export default function CronPage() {
   return (
     <div className="p-4 md:p-6 space-y-6">
       <h1 className="text-xl font-bold">Cron Jobs</h1>
-      <p className="text-sm text-slate-400">Crontab des aktuellen Benutzers (deploy)</p>
+      <p className="text-sm text-slate-400">Crontab of the current user (deploy)</p>
 
       {msg && (
         <div className="card bg-indigo-600/10 border border-indigo-500/30 text-indigo-300 text-sm">{msg}</div>
@@ -81,7 +81,7 @@ export default function CronPage() {
 
       {/* Add form */}
       <div className="card space-y-3">
-        <h2 className="text-sm font-semibold text-slate-300">Neuer Job</h2>
+        <h2 className="text-sm font-semibold text-slate-300">New Job</h2>
         <div className="flex flex-wrap gap-2">
           {PRESETS.map((p) => (
             <button
@@ -109,7 +109,7 @@ export default function CronPage() {
               />
             </div>
             <div className="flex flex-col gap-1 flex-1">
-              <label className="text-xs text-slate-500">Befehl</label>
+              <label className="text-xs text-slate-500">Command</label>
               <input
                 value={command}
                 onChange={(e) => setCommand(e.target.value)}
@@ -123,27 +123,27 @@ export default function CronPage() {
             disabled={busy || !schedule || !command}
             className="px-4 py-1.5 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 disabled:opacity-50 transition-colors"
           >
-            Hinzufügen
+            Add
           </button>
         </form>
       </div>
 
       {/* Jobs list */}
       <div className="card overflow-x-auto">
-        <h2 className="text-sm font-semibold text-slate-300 mb-3">Aktuelle Jobs</h2>
+        <h2 className="text-sm font-semibold text-slate-300 mb-3">Current Jobs</h2>
         {loading ? (
-          <p className="text-sm text-slate-500">Lade…</p>
+          <p className="text-sm text-slate-500">Loading…</p>
         ) : error ? (
           <p className="text-sm text-red-400">{error}</p>
         ) : jobs.length === 0 ? (
-          <p className="text-sm text-slate-500">Keine Cron Jobs definiert</p>
+          <p className="text-sm text-slate-500">No cron jobs defined</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-slate-500 border-b border-slate-700">
                 <th className="pb-2 pr-4">Schedule</th>
-                <th className="pb-2 pr-4">Befehl</th>
-                <th className="pb-2 pr-4">Kommentar</th>
+                <th className="pb-2 pr-4">Command</th>
+                <th className="pb-2 pr-4">Comment</th>
                 <th className="pb-2" />
               </tr>
             </thead>
@@ -159,7 +159,7 @@ export default function CronPage() {
                       disabled={busy}
                       className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors"
                     >
-                      Löschen
+                      Delete
                     </button>
                   </td>
                 </tr>

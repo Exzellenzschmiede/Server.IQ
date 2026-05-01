@@ -70,8 +70,8 @@ async def send_email(host: str, port: int, user: str | None, password: str | Non
 
 async def test_notification(db: AsyncSession, channel: str) -> dict:
     cfg = await _get_or_create_config(db)
-    subject = "Server.IQ — Test-Nachricht"
-    body = "Das ist eine Test-Benachrichtigung von Server.IQ."
+    subject = "Server.IQ — Test Message"
+    body = "This is a test notification from Server.IQ."
     try:
         if channel == "telegram":
             if not cfg.telegram_enabled or not cfg.telegram_bot_token or not cfg.telegram_chat_id:

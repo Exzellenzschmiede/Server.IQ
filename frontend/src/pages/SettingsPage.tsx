@@ -32,7 +32,7 @@ export default function SettingsPage() {
     try {
       setServices(await getMonitoredServices());
     } catch {
-      setLoadError("Services konnten nicht geladen werden.");
+      setLoadError("Could not load services.");
     } finally {
       setLoading(false);
     }
@@ -69,7 +69,7 @@ export default function SettingsPage() {
       }
       cancelEdit();
     } catch {
-      setError("Speichern fehlgeschlagen.");
+      setError("Failed to save.");
     } finally {
       setSaving(false);
     }
@@ -81,7 +81,7 @@ export default function SettingsPage() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm("Service wirklich löschen?")) return;
+    if (!confirm("Really delete this service?")) return;
     await deleteMonitoredService(id);
     setServices((prev) => prev.filter((s) => s.id !== id));
     if (editId === id) cancelEdit();
@@ -89,12 +89,12 @@ export default function SettingsPage() {
 
   return (
     <div className="p-6 max-w-3xl">
-      <h1 className="text-xl font-semibold text-slate-100 mb-1">Einstellungen</h1>
-      <p className="text-sm text-slate-400 mb-6">Konfiguration der überwachten Services</p>
+      <h1 className="text-xl font-semibold text-slate-100 mb-1">Settings</h1>
+      <p className="text-sm text-slate-400 mb-6">Monitored services configuration</p>
 
-      {/* Service-Liste */}
+      {/* Service list */}
       <div className="card mb-6">
-        <h2 className="text-sm font-semibold text-slate-300 mb-3">Überwachte Services</h2>
+        <h2 className="text-sm font-semibold text-slate-300 mb-3">Monitored Services</h2>
         {loading ? (
           <div className="flex justify-center py-4"><Spinner /></div>
         ) : loadError ? (
@@ -104,10 +104,10 @@ export default function SettingsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-slate-500 border-b border-slate-700">
-                  <th className="pb-2 pr-4">Anzeigename</th>
+                  <th className="pb-2 pr-4">Display name</th>
                   <th className="pb-2 pr-4">Key</th>
                   <th className="pb-2 pr-4">Host:Port</th>
-                  <th className="pb-2 pr-4">Aktiv</th>
+                  <th className="pb-2 pr-4">Active</th>
                   <th className="pb-2" />
                 </tr>
               </thead>
@@ -130,17 +130,17 @@ export default function SettingsPage() {
                     <td className="py-2">
                       <div className="flex gap-2">
                         <button onClick={() => startEdit(svc)} className="text-xs text-indigo-400 hover:text-indigo-300">
-                          Bearbeiten
+                          Edit
                         </button>
                         <button onClick={() => handleDelete(svc.id)} className="text-xs text-red-400 hover:text-red-300">
-                          Löschen
+                          Delete
                         </button>
                       </div>
                     </td>
                   </tr>
                 ))}
                 {services.length === 0 && (
-                  <tr><td colSpan={5} className="py-4 text-center text-slate-500">Keine Services</td></tr>
+                  <tr><td colSpan={5} className="py-4 text-center text-slate-500">No services</td></tr>
                 )}
               </tbody>
             </table>
@@ -148,15 +148,15 @@ export default function SettingsPage() {
         )}
       </div>
 
-      {/* Formular */}
+      {/* Form */}
       <div className="card">
         <h2 className="text-sm font-semibold text-slate-300 mb-3">
-          {editId !== null ? "Service bearbeiten" : "Service hinzufügen"}
+          {editId !== null ? "Edit Service" : "Add Service"}
         </h2>
         <form onSubmit={handleSave} className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Anzeigename</label>
+              <label className="block text-xs text-slate-400 mb-1">Display name</label>
               <input
                 value={form.display_name}
                 onChange={(e) => setForm((p) => ({ ...p, display_name: e.target.value }))}
@@ -165,7 +165,7 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Key (eindeutig)</label>
+              <label className="block text-xs text-slate-400 mb-1">Key (unique)</label>
               <input
                 value={form.key}
                 onChange={(e) => setForm((p) => ({ ...p, key: e.target.value }))}
@@ -175,7 +175,7 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Host (leer = Socket-Check)</label>
+              <label className="block text-xs text-slate-400 mb-1">Host (empty = socket check)</label>
               <input
                 value={form.host ?? ""}
                 onChange={(e) => setForm((p) => ({ ...p, host: e.target.value }))}
@@ -198,11 +198,11 @@ export default function SettingsPage() {
           {error && <p className="text-xs text-red-400">{error}</p>}
           <div className="flex gap-2">
             <button type="submit" disabled={saving} className="btn-primary py-1.5 px-4">
-              {saving ? <Spinner size="sm" /> : editId !== null ? "Speichern" : "Hinzufügen"}
+              {saving ? <Spinner size="sm" /> : editId !== null ? "Save" : "Add"}
             </button>
             {editId !== null && (
               <button type="button" onClick={cancelEdit} className="btn-secondary py-1.5 px-4">
-                Abbrechen
+                Cancel
               </button>
             )}
           </div>
