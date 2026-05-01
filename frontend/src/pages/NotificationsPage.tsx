@@ -61,12 +61,26 @@ function Toggle({
   );
 }
 
+type Msg = { text: string; ok: boolean } | null;
+
+function InlineMsg({ msg }: { msg: Msg }) {
+  if (!msg) return null;
+  return (
+    <p className={`text-xs mt-1 ${msg.ok ? "text-emerald-400" : "text-red-400"}`}>
+      {msg.ok ? "✓" : "✗"} {msg.text}
+    </p>
+  );
+}
+
 export default function NotificationsPage() {
   const [cfg, setCfg] = useState<NotificationConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState<"telegram" | "email" | null>(null);
-  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  const [saveMsg, setSaveMsg] = useState<Msg>(null);
+  const [telegramMsg, setTelegramMsg] = useState<Msg>(null);
+  const [emailMsg, setEmailMsg] = useState<Msg>(null);
 
   useEffect(() => {
     getNotificationConfig()
@@ -74,9 +88,9 @@ export default function NotificationsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  function flash(text: string, ok: boolean) {
-    setMsg({ text, ok });
-    setTimeout(() => setMsg(null), 5000);
+  function flash(set: (m: Msg) => void, text: string, ok: boolean) {
+    set({ text, ok });
+    setTimeout(() => set(null), 6000);
   }
 
   function update<K extends keyof NotificationConfig>(key: K, value: NotificationConfig[K]) {
@@ -89,22 +103,23 @@ export default function NotificationsPage() {
     try {
       const updated = await updateNotificationConfig(cfg);
       setCfg(updated);
-      flash("Settings saved", true);
+      flash(setSaveMsg, "Settings saved", true);
     } catch {
-      flash("Error saving settings", false);
+      flash(setSaveMsg, "Error saving settings", false);
     } finally {
       setSaving(false);
     }
   }
 
   async function test(channel: "telegram" | "email") {
+    const setMsg = channel === "telegram" ? setTelegramMsg : setEmailMsg;
     setTesting(channel);
     try {
       const r = await testNotification(channel);
-      flash(r.success ? `Test message sent (${channel})` : "Failed to send", r.success);
+      flash(setMsg, r.success ? `Test message sent (${channel})` : "Failed to send", r.success);
     } catch (e: unknown) {
       const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      flash(detail ?? "Error sending test message", false);
+      flash(setMsg, detail ?? "Error sending test message", false);
     } finally {
       setTesting(null);
     }
@@ -117,18 +132,6 @@ export default function NotificationsPage() {
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-2xl">
       <h1 className="text-xl font-bold">Notifications</h1>
-
-      {msg && (
-        <div
-          className={`card text-sm border ${
-            msg.ok
-              ? "bg-emerald-600/10 border-emerald-500/30 text-emerald-300"
-              : "bg-red-600/10 border-red-500/30 text-red-400"
-          }`}
-        >
-          {msg.text}
-        </div>
-      )}
 
       {/* General settings */}
       <div className="card space-y-4">
@@ -174,13 +177,16 @@ export default function NotificationsPage() {
           onChange={(v) => update("telegram_chat_id", v || null)}
           placeholder="-100123456789"
         />
-        <button
-          onClick={() => test("telegram")}
-          disabled={testing !== null || !cfg.telegram_bot_token}
-          className="px-3 py-1.5 text-sm bg-sky-600/20 text-sky-400 rounded hover:bg-sky-600/30 disabled:opacity-50 transition-colors"
-        >
-          {testing === "telegram" ? "Sending…" : "Send test"}
-        </button>
+        <div>
+          <button
+            onClick={() => test("telegram")}
+            disabled={testing !== null || !cfg.telegram_bot_token}
+            className="px-3 py-1.5 text-sm bg-sky-600/20 text-sky-400 rounded hover:bg-sky-600/30 disabled:opacity-50 transition-colors"
+          >
+            {testing === "telegram" ? "Sending…" : "Send test"}
+          </button>
+          <InlineMsg msg={telegramMsg} />
+        </div>
       </div>
 
       {/* Email */}
@@ -194,7 +200,8 @@ export default function NotificationsPage() {
           />
         </div>
         <p className="text-xs text-slate-500">
-          Local Postfix: host <code className="text-slate-400">localhost</code>, port <code className="text-slate-400">25</code>, leave username and password empty.
+          Local Postfix: host <code className="text-slate-400">localhost</code>, port{" "}
+          <code className="text-slate-400">25</code>, leave username and password empty.
         </p>
         <div className="grid grid-cols-2 gap-3">
           <Field
@@ -236,22 +243,29 @@ export default function NotificationsPage() {
             placeholder="admin@example.com"
           />
         </div>
-        <button
-          onClick={() => test("email")}
-          disabled={testing !== null || !cfg.email_smtp_host}
-          className="px-3 py-1.5 text-sm bg-sky-600/20 text-sky-400 rounded hover:bg-sky-600/30 disabled:opacity-50 transition-colors"
-        >
-          {testing === "email" ? "Sending…" : "Send test"}
-        </button>
+        <div>
+          <button
+            onClick={() => test("email")}
+            disabled={testing !== null || !cfg.email_smtp_host}
+            className="px-3 py-1.5 text-sm bg-sky-600/20 text-sky-400 rounded hover:bg-sky-600/30 disabled:opacity-50 transition-colors"
+          >
+            {testing === "email" ? "Sending…" : "Send test"}
+          </button>
+          <InlineMsg msg={emailMsg} />
+        </div>
       </div>
 
-      <button
-        onClick={save}
-        disabled={saving}
-        className="w-full py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-      >
-        {saving ? "Saving…" : "Save settings"}
-      </button>
+      {/* Save */}
+      <div>
+        <button
+          onClick={save}
+          disabled={saving}
+          className="w-full py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+        >
+          {saving ? "Saving…" : "Save settings"}
+        </button>
+        <InlineMsg msg={saveMsg} />
+      </div>
     </div>
   );
 }

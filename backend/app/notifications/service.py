@@ -28,7 +28,7 @@ async def get_config(db: AsyncSession) -> NotificationConfig:
 async def update_config(db: AsyncSession, updates: dict) -> NotificationConfig:
     cfg = await _get_or_create_config(db)
     for key, value in updates.items():
-        if value is not None and hasattr(cfg, key):
+        if hasattr(cfg, key):
             setattr(cfg, key, value)
     await db.commit()
     await db.refresh(cfg)

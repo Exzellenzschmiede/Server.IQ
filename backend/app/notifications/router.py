@@ -22,8 +22,7 @@ async def patch_config(
     _: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    updates = {k: v for k, v in body.model_dump().items() if v is not None}
-    return await update_config(db, updates)
+    return await update_config(db, body.model_dump())
 
 
 @router.post("/test")
