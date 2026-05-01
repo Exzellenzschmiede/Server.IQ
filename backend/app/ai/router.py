@@ -73,8 +73,11 @@ def _build_server_context() -> str:
         proc_lines = [f"  {p.pid} {p.name} cpu={p.cpu_percent:.1f}% mem={p.memory_percent:.1f}%" for p in procs]
         proc_section = "Top processes (by CPU):\n" + "\n".join(proc_lines) if proc_lines else ""
 
+        uptime_h = int(info.uptime_seconds // 3600)
+        uptime_m = int((info.uptime_seconds % 3600) // 60)
+        uptime_str = f"{uptime_h}h {uptime_m}m"
         return (
-            f"Server: {info.hostname} | {info.os} | kernel {info.kernel} | uptime {info.uptime_human}\n"
+            f"Server: {info.hostname} | {info.os_name} | kernel {info.kernel_version} | uptime {uptime_str}\n"
             f"{cpu_line}\n"
             f"{mem_line}\n"
             f"{disk_section}\n"
