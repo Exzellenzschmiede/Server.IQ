@@ -1,3 +1,4 @@
+'''
   ░██████╗███████╗██████╗ ██╗   ██╗███████╗██████╗    
   ██╔════╝██╔════╝██╔══██╗██║   ██║██╔════╝██╔══██╗   
   ╚█████╗ █████╗  ██████╔╝██║   ██║█████╗  ██████╔╝   
@@ -5,7 +6,7 @@
   ██████╔╝███████╗██║  ██║ ╚████╔╝ ███████╗██║  ██║   
   ╚═════╝ ╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝ .IQ  
   ★  ★  ★   Know your server. Own your server.   ★  ★  ★     
-  
+'''  
 
 A self-hosted VPS admin console — Progressive Web App (PWA) you deploy once on your server and access from any device.
 
