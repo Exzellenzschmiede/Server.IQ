@@ -24,6 +24,7 @@ const NAV = [
 const ADMIN_NAV = [
   { to: "/notifications", label: "Notifications", icon: "🔔" },
   { to: "/cleanup",       label: "Cleanup",        icon: "🧹" },
+  { to: "/power",         label: "Power",          icon: "⏻" },
   { to: "/users",         label: "Users",          icon: "👥" },
   { to: "/settings",      label: "Settings",       icon: "🔧" },
   { to: "/logs",          label: "App Logs",        icon: "📋" },

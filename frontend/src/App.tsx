@@ -30,6 +30,7 @@ import SetupPage from "./pages/SetupPage";
 import SslPage from "./pages/SslPage";
 import UpdatesPage from "./pages/UpdatesPage";
 import UsersPage from "./pages/UsersPage";
+import PowerPage from "./pages/PowerPage";
 
 function useSetupRequired() {
   const [setupRequired, setSetupRequired] = useState<boolean | null>(null);
@@ -88,6 +89,7 @@ export default function App() {
                     <Route path="access-log" element={<AccessLogPage />} />
                     <Route path="nginx" element={<NginxPage />} />
                     <Route path="cleanup" element={<RequireAdmin><CleanupPage /></RequireAdmin>} />
+                    <Route path="power" element={<RequireAdmin><PowerPage /></RequireAdmin>} />
                     <Route path="files" element={<FilesPage />} />
                     <Route path="users" element={<RequireAdmin><UsersPage /></RequireAdmin>} />
                     <Route path="notifications" element={<RequireAdmin><NotificationsPage /></RequireAdmin>} />
