@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import Logo from "../ui/Logo";
 
@@ -61,16 +61,19 @@ const ADMIN_GROUP: Group = {
   ],
 };
 
-const LS_KEY = "sidebar_collapsed";
-
-function loadCollapsed(): Set<string> {
-  try { return new Set(JSON.parse(localStorage.getItem(LS_KEY) ?? "[]")); }
-  catch { return new Set(); }
+function findActiveGroup(pathname: string, groups: Group[]): string | null {
+  for (const g of groups) {
+    for (const item of g.items) {
+      const match = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
+      if (match) return g.key;
+    }
+  }
+  return null;
 }
 
-function NavGroup({ group, collapsed, onToggle }: {
+function NavGroup({ group, open, onToggle }: {
   group: Group;
-  collapsed: boolean;
+  open: boolean;
   onToggle: () => void;
 }) {
   return (
@@ -80,9 +83,12 @@ function NavGroup({ group, collapsed, onToggle }: {
         className="w-full flex items-center justify-between px-2 py-1.5 mt-1 rounded text-[11px] font-semibold uppercase tracking-widest text-slate-500 hover:text-slate-400 transition-colors"
       >
         {group.label}
-        <span className="text-[9px] transition-transform duration-150" style={{ transform: collapsed ? "rotate(-90deg)" : "none" }}>▾</span>
+        <span
+          className="text-[9px] transition-transform duration-150"
+          style={{ transform: open ? "none" : "rotate(-90deg)" }}
+        >▾</span>
       </button>
-      {!collapsed && (
+      {open && (
         <div className="flex flex-col gap-0.5 mt-0.5">
           {group.items.map(({ to, label, icon }) => (
             <NavLink
@@ -109,18 +115,20 @@ function NavGroup({ group, collapsed, onToggle }: {
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
-  const [collapsed, setCollapsed] = useState<Set<string>>(loadCollapsed);
+  const { pathname } = useLocation();
+  const groups = user?.is_admin ? [...GROUPS, ADMIN_GROUP] : GROUPS;
+
+  const [openKey, setOpenKey] = useState<string | null>(() => findActiveGroup(pathname, groups));
+
+  // When navigating (e.g. via BottomNav or direct URL), open the matching group
+  useEffect(() => {
+    const g = findActiveGroup(pathname, groups);
+    if (g) setOpenKey(g);
+  }, [pathname]);
 
   function toggle(key: string) {
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      localStorage.setItem(LS_KEY, JSON.stringify([...next]));
-      return next;
-    });
+    setOpenKey((prev) => (prev === key ? null : key));
   }
-
-  const groups = user?.is_admin ? [...GROUPS, ADMIN_GROUP] : GROUPS;
 
   return (
     <aside className="hidden md:flex flex-col w-56 h-screen bg-slate-800 border-r border-slate-700/50 px-3 py-4">
@@ -134,7 +142,7 @@ export default function Sidebar() {
           <NavGroup
             key={group.key}
             group={group}
-            collapsed={collapsed.has(group.key)}
+            open={openKey === group.key}
             onToggle={() => toggle(group.key)}
           />
         ))}
