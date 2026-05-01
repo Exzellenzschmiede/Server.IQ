@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import {
   createMonitoredService,
   deleteMonitoredService,
+  getAppConfig,
   getMonitoredServices,
+  updateAppConfig,
   updateMonitoredService,
 } from "../api/settings";
 import Spinner from "../components/ui/Spinner";
-import type { ServiceConfig, ServiceConfigCreate } from "../types/settings";
+import type { AppConfig, ServiceConfig, ServiceConfigCreate } from "../types/settings";
 
 const EMPTY_FORM: ServiceConfigCreate = {
   key: "",
@@ -17,6 +19,36 @@ const EMPTY_FORM: ServiceConfigCreate = {
 };
 
 export default function SettingsPage() {
+  // ── App config ──────────────────────────────────────────────────────────
+  const [appCfg, setAppCfg] = useState<AppConfig | null>(null);
+  const [uploadMb, setUploadMb] = useState(100);
+  const [savingApp, setSavingApp] = useState(false);
+  const [appMsg, setAppMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  useEffect(() => {
+    getAppConfig().then((cfg) => {
+      setAppCfg(cfg);
+      setUploadMb(cfg.upload_max_size_mb);
+    });
+  }, []);
+
+  async function saveAppConfig() {
+    setSavingApp(true);
+    setAppMsg(null);
+    try {
+      const updated = await updateAppConfig({ upload_max_size_mb: uploadMb });
+      setAppCfg(updated);
+      setUploadMb(updated.upload_max_size_mb);
+      setAppMsg({ text: "Saved", ok: true });
+    } catch {
+      setAppMsg({ text: "Failed to save", ok: false });
+    } finally {
+      setSavingApp(false);
+      setTimeout(() => setAppMsg(null), 5000);
+    }
+  }
+
+  // ── Monitored services ──────────────────────────────────────────────────
   const [services, setServices] = useState<ServiceConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -88,12 +120,51 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-6 max-w-3xl">
-      <h1 className="text-xl font-semibold text-slate-100 mb-1">Settings</h1>
-      <p className="text-sm text-slate-400 mb-6">Monitored services configuration</p>
+    <div className="p-6 max-w-3xl space-y-6">
+      <div>
+        <h1 className="text-xl font-semibold text-slate-100 mb-1">Settings</h1>
+        <p className="text-sm text-slate-400">Application configuration and monitored services</p>
+      </div>
 
-      {/* Service list */}
-      <div className="card mb-6">
+      {/* App Settings */}
+      <div className="card space-y-4">
+        <h2 className="text-sm font-semibold text-slate-300">App Settings</h2>
+
+        <div className="flex items-end gap-3 flex-wrap">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-slate-400">Maximum upload size (MB)</label>
+            <input
+              type="number"
+              min={1}
+              max={10240}
+              value={uploadMb}
+              onChange={(e) => setUploadMb(Math.max(1, parseInt(e.target.value) || 1))}
+              className="w-36 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-slate-600 invisible">save</span>
+            <button
+              onClick={saveAppConfig}
+              disabled={savingApp || appCfg?.upload_max_size_mb === uploadMb}
+              className="btn-primary py-2 px-4 disabled:opacity-50"
+            >
+              {savingApp ? <Spinner size="sm" /> : "Save"}
+            </button>
+          </div>
+          {appMsg && (
+            <p className={`text-xs self-end pb-2 ${appMsg.ok ? "text-emerald-400" : "text-red-400"}`}>
+              {appMsg.ok ? "✓" : "✗"} {appMsg.text}
+            </p>
+          )}
+        </div>
+        <p className="text-xs text-slate-500">
+          Nginx accepts up to 5 GB. The app enforces this limit — changes take effect within 30 seconds.
+        </p>
+      </div>
+
+      {/* Monitored services list */}
+      <div className="card">
         <h2 className="text-sm font-semibold text-slate-300 mb-3">Monitored Services</h2>
         {loading ? (
           <div className="flex justify-center py-4"><Spinner /></div>
@@ -148,7 +219,7 @@ export default function SettingsPage() {
         )}
       </div>
 
-      {/* Form */}
+      {/* Service form */}
       <div className="card">
         <h2 className="text-sm font-semibold text-slate-300 mb-3">
           {editId !== null ? "Edit Service" : "Add Service"}
@@ -179,7 +250,7 @@ export default function SettingsPage() {
               <input
                 value={form.host ?? ""}
                 onChange={(e) => setForm((p) => ({ ...p, host: e.target.value }))}
-                placeholder="host.docker.internal"
+                placeholder="127.0.0.1"
                 className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
               />
             </div>

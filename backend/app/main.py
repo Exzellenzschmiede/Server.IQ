@@ -1,14 +1,17 @@
 import asyncio
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.auth.router import router as auth_router
 from app.config import settings
@@ -19,7 +22,7 @@ from app.docker_mgmt.router import router as docker_router
 from app.files.router import router as files_router
 from app.firewall.router import router as firewall_router
 from app.logs.router import router as logs_router
-from app.models import Base, MetricSnapshot, MonitoredService, NotificationConfig, ServiceAlertState
+from app.models import AppConfig, Base, MetricSnapshot, MonitoredService, NotificationConfig, ServiceAlertState
 from app.notifications.router import router as notifications_router
 from app.settings.router import router as settings_router
 from app.ssl_certs.router import router as ssl_router
@@ -50,7 +53,7 @@ async def _migrate_service_hosts(db: AsyncSession) -> None:
 
 
 async def _metric_snapshot_loop() -> None:
-    await asyncio.sleep(10)  # let the app start up first
+    await asyncio.sleep(10)
     while True:
         try:
             metrics = get_all_metrics()
@@ -97,18 +100,18 @@ async def _notification_monitor_loop() -> None:
                             was_down = state.is_down
                             if is_down and not was_down and cfg.notify_on_failure:
                                 msg = (
-                                    f"🔴 <b>Service ausgefallen</b>\n"
+                                    f"🔴 <b>Service down</b>\n"
                                     f"Service: <b>{svc.display_name}</b>\n"
                                     f"Status: {svc.status}\n"
-                                    f"Zeit: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
+                                    f"Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
                                 )
                                 await notify(cfg, msg)
                                 state.alerted_at = datetime.now(timezone.utc)
                             elif not is_down and was_down and cfg.notify_on_recovery:
                                 msg = (
-                                    f"🟢 <b>Service wiederhergestellt</b>\n"
+                                    f"🟢 <b>Service recovered</b>\n"
                                     f"Service: <b>{svc.display_name}</b>\n"
-                                    f"Zeit: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
+                                    f"Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
                                 )
                                 await notify(cfg, msg)
                             state.is_down = is_down
@@ -116,6 +119,39 @@ async def _notification_monitor_loop() -> None:
         except Exception:
             pass
         await asyncio.sleep(interval)
+
+
+# ── Upload size limit middleware ───────────────────────────────────────────────
+# Cache the configured limit for 30 seconds to avoid a DB hit on every upload.
+_upload_limit_cache: dict = {"bytes": 100 * 1024 * 1024, "until": 0.0}
+
+
+async def _get_upload_limit_bytes() -> int:
+    now = time.time()
+    if now >= _upload_limit_cache["until"]:
+        try:
+            async with AsyncSessionLocal() as db:
+                cfg = await db.scalar(select(AppConfig).where(AppConfig.id == 1))
+                mb = cfg.upload_max_size_mb if cfg else 100
+        except Exception:
+            mb = 100
+        _upload_limit_cache["bytes"] = mb * 1024 * 1024
+        _upload_limit_cache["until"] = now + 30
+    return _upload_limit_cache["bytes"]
+
+
+class UploadSizeLimitMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        if request.url.path.endswith("/files/upload") and request.method == "POST":
+            cl = request.headers.get("content-length")
+            if cl:
+                limit = await _get_upload_limit_bytes()
+                if int(cl) > limit:
+                    return JSONResponse(
+                        {"detail": f"Upload exceeds the configured limit of {limit // (1024 * 1024)} MB"},
+                        status_code=413,
+                    )
+        return await call_next(request)
 
 
 @asynccontextmanager
@@ -146,6 +182,7 @@ app = FastAPI(title="Server.IQ API", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+app.add_middleware(UploadSizeLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,

@@ -4,10 +4,48 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import require_admin
-from app.models import MonitoredService, User
-from app.settings.schemas import ServiceConfigCreate, ServiceConfigOut, ServiceConfigUpdate
+from app.models import AppConfig, MonitoredService, User
+from app.settings.schemas import (
+    AppConfigOut,
+    AppConfigUpdate,
+    ServiceConfigCreate,
+    ServiceConfigOut,
+    ServiceConfigUpdate,
+)
 
 router = APIRouter()
+
+
+async def _get_or_create_app_config(db: AsyncSession) -> AppConfig:
+    cfg = await db.scalar(select(AppConfig).where(AppConfig.id == 1))
+    if cfg is None:
+        cfg = AppConfig(id=1)
+        db.add(cfg)
+        await db.commit()
+        await db.refresh(cfg)
+    return cfg
+
+
+@router.get("/app", response_model=AppConfigOut)
+async def get_app_config(
+    _: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    return await _get_or_create_app_config(db)
+
+
+@router.patch("/app", response_model=AppConfigOut)
+async def patch_app_config(
+    body: AppConfigUpdate,
+    _: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    cfg = await _get_or_create_app_config(db)
+    for key, value in body.model_dump(exclude_none=True).items():
+        setattr(cfg, key, value)
+    await db.commit()
+    await db.refresh(cfg)
+    return cfg
 
 
 @router.get("/services", response_model=list[ServiceConfigOut])

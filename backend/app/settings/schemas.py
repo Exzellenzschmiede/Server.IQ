@@ -1,6 +1,16 @@
 from pydantic import BaseModel
 
 
+class AppConfigOut(BaseModel):
+    upload_max_size_mb: int
+
+    model_config = {"from_attributes": True}
+
+
+class AppConfigUpdate(BaseModel):
+    upload_max_size_mb: int | None = None
+
+
 class ServiceConfigOut(BaseModel):
     id: int
     key: str

@@ -1,5 +1,15 @@
 import client from "./client";
-import type { ServiceConfig, ServiceConfigCreate } from "../types/settings";
+import type { AppConfig, ServiceConfig, ServiceConfigCreate } from "../types/settings";
+
+export const getAppConfig = async (): Promise<AppConfig> => {
+  const { data } = await client.get<AppConfig>("/settings/app");
+  return data;
+};
+
+export const updateAppConfig = async (body: Partial<AppConfig>): Promise<AppConfig> => {
+  const { data } = await client.patch<AppConfig>("/settings/app", body);
+  return data;
+};
 
 export const getMonitoredServices = async (): Promise<ServiceConfig[]> => {
   const { data } = await client.get("/settings/services");

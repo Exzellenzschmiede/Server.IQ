@@ -1,3 +1,7 @@
+export interface AppConfig {
+  upload_max_size_mb: number;
+}
+
 export interface ServiceConfig {
   id: number;
   key: string;

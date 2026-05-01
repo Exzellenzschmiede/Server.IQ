@@ -56,6 +56,13 @@ class MetricSnapshot(Base):
     net_sent_bps: Mapped[float] = mapped_column(Float, default=0.0)
 
 
+class AppConfig(Base):
+    __tablename__ = "app_config"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    upload_max_size_mb: Mapped[int] = mapped_column(Integer, default=100)
+
+
 class NotificationConfig(Base):
     __tablename__ = "notification_config"
 
