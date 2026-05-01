@@ -74,14 +74,14 @@ async def test_notification(db: AsyncSession, channel: str) -> dict:
     body = "This is a test notification from Server.IQ."
     try:
         if channel == "telegram":
-            if not cfg.telegram_enabled or not cfg.telegram_bot_token or not cfg.telegram_chat_id:
+            if not cfg.telegram_bot_token or not cfg.telegram_chat_id:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                    detail="Telegram is not configured or disabled")
+                                    detail="Telegram bot token and chat ID are required")
             ok = await send_telegram(cfg.telegram_bot_token, cfg.telegram_chat_id, f"<b>{subject}</b>\n{body}")
         elif channel == "email":
-            if not cfg.email_enabled or not cfg.email_smtp_host or not cfg.email_from or not cfg.email_to:
+            if not cfg.email_smtp_host or not cfg.email_from or not cfg.email_to:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                    detail="Email is not configured or disabled")
+                                    detail="SMTP host, from address, and to address are required")
             ok = await send_email(
                 cfg.email_smtp_host, cfg.email_smtp_port,
                 cfg.email_smtp_user, cfg.email_smtp_password,

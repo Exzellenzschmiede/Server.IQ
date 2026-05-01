@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   getNotificationConfig,
   testNotification,
@@ -72,15 +72,19 @@ function InlineMsg({ msg }: { msg: Msg }) {
   );
 }
 
+type SaveStatus = "idle" | "pending" | "saving" | "saved" | "error";
+
 export default function NotificationsPage() {
   const [cfg, setCfg] = useState<NotificationConfig | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [testing, setTesting] = useState<"telegram" | "email" | null>(null);
 
-  const [saveMsg, setSaveMsg] = useState<Msg>(null);
   const [telegramMsg, setTelegramMsg] = useState<Msg>(null);
   const [emailMsg, setEmailMsg] = useState<Msg>(null);
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cfgRef = useRef<NotificationConfig | null>(null);
 
   useEffect(() => {
     getNotificationConfig()
@@ -94,21 +98,33 @@ export default function NotificationsPage() {
   }
 
   function update<K extends keyof NotificationConfig>(key: K, value: NotificationConfig[K]) {
-    setCfg((prev) => (prev ? { ...prev, [key]: value } : prev));
+    setCfg((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, [key]: value };
+      cfgRef.current = next;
+      scheduleSave();
+      return next;
+    });
   }
 
-  async function save() {
-    if (!cfg) return;
-    setSaving(true);
-    try {
-      const updated = await updateNotificationConfig(cfg);
-      setCfg(updated);
-      flash(setSaveMsg, "Settings saved", true);
-    } catch {
-      flash(setSaveMsg, "Error saving settings", false);
-    } finally {
-      setSaving(false);
-    }
+  function scheduleSave() {
+    setSaveStatus("pending");
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      const snapshot = cfgRef.current;
+      if (!snapshot) return;
+      setSaveStatus("saving");
+      try {
+        const updated = await updateNotificationConfig(snapshot);
+        setCfg(updated);
+        cfgRef.current = updated;
+        setSaveStatus("saved");
+        setTimeout(() => setSaveStatus("idle"), 3000);
+      } catch {
+        setSaveStatus("error");
+        setTimeout(() => setSaveStatus("idle"), 6000);
+      }
+    }, 800);
   }
 
   async function test(channel: "telegram" | "email") {
@@ -129,9 +145,21 @@ export default function NotificationsPage() {
     return <div className="p-6 text-sm text-slate-500">Loading…</div>;
   }
 
+  const saveIndicator =
+    saveStatus === "pending" || saveStatus === "saving" ? (
+      <span className="text-xs text-slate-500">Saving…</span>
+    ) : saveStatus === "saved" ? (
+      <span className="text-xs text-emerald-400">✓ Saved</span>
+    ) : saveStatus === "error" ? (
+      <span className="text-xs text-red-400">✗ Error saving</span>
+    ) : null;
+
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-2xl">
-      <h1 className="text-xl font-bold">Notifications</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold">Notifications</h1>
+        {saveIndicator}
+      </div>
 
       {/* General settings */}
       <div className="card space-y-4">
@@ -180,7 +208,7 @@ export default function NotificationsPage() {
         <div>
           <button
             onClick={() => test("telegram")}
-            disabled={testing !== null || !cfg.telegram_bot_token}
+            disabled={testing !== null || !cfg.telegram_bot_token || !cfg.telegram_chat_id}
             className="px-3 py-1.5 text-sm bg-sky-600/20 text-sky-400 rounded hover:bg-sky-600/30 disabled:opacity-50 transition-colors"
           >
             {testing === "telegram" ? "Sending…" : "Send test"}
@@ -246,25 +274,13 @@ export default function NotificationsPage() {
         <div>
           <button
             onClick={() => test("email")}
-            disabled={testing !== null || !cfg.email_smtp_host}
+            disabled={testing !== null || !cfg.email_smtp_host || !cfg.email_from || !cfg.email_to}
             className="px-3 py-1.5 text-sm bg-sky-600/20 text-sky-400 rounded hover:bg-sky-600/30 disabled:opacity-50 transition-colors"
           >
             {testing === "email" ? "Sending…" : "Send test"}
           </button>
           <InlineMsg msg={emailMsg} />
         </div>
-      </div>
-
-      {/* Save */}
-      <div>
-        <button
-          onClick={save}
-          disabled={saving}
-          className="w-full py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-        >
-          {saving ? "Saving…" : "Save settings"}
-        </button>
-        <InlineMsg msg={saveMsg} />
       </div>
     </div>
   );
