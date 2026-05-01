@@ -4,8 +4,8 @@
 
 | Parameter | Value |
 |---|---|
-| VPS IP | `217.154.199.218` |
-| Domain | `server.exzellenzschmiede.de` |
+| VPS IP | `your.vps.ip.address` |
+| Domain | `your-domain.example.com` |
 | Backend port | `8100` |
 | Frontend port | `8101` |
 | PostgreSQL | host `localhost`, port `5432` |
@@ -21,7 +21,7 @@
 `setup.sh` must be run **once** on the VPS as root before CI/CD will work.
 
 ```bash
-git clone https://github.com/exzellenzschmiede/server.iq /opt/server-iq
+git clone https://github.com/your-org/server-iq /opt/server-iq
 cd /opt/server-iq
 sudo bash setup.sh
 ```
@@ -96,10 +96,10 @@ File: `nginx/server-iq.conf` (deployed to `/etc/nginx/sites-available/server-iq.
 ```nginx
 server {
     listen 443 ssl;
-    server_name server.exzellenzschmiede.de;
+    server_name your-domain.example.com;
 
-    ssl_certificate     /etc/letsencrypt/live/server.exzellenzschmiede.de/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/server.exzellenzschmiede.de/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/your-domain.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/your-domain.example.com/privkey.pem;
 
     add_header Strict-Transport-Security "max-age=31536000" always;
     add_header X-Frame-Options DENY;
@@ -120,7 +120,7 @@ server {
 
 server {
     listen 80;
-    server_name server.exzellenzschmiede.de;
+    server_name your-domain.example.com;
     return 301 https://$host$request_uri;
 }
 ```

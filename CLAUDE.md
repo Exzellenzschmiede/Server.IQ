@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Self-hosted VPS Admin Console as a Progressive Web App (PWA). Runs as a systemd service directly on the VPS host under the `root` user. Accessible at `https://server.exzellenzschmiede.de`. Provides real-time monitoring (CPU, RAM, disk, network, services) and full management of Docker containers, firewall rules, SSL certificates, cron jobs, files, and more.
+Self-hosted VPS Admin Console as a Progressive Web App (PWA). Runs as a systemd service directly on the VPS host under the `root` user. Accessible at `https://your-domain.example.com`. Provides real-time monitoring (CPU, RAM, disk, network, services) and full management of Docker containers, firewall rules, SSL certificates, cron jobs, files, and more.
 
 ---
 
@@ -32,15 +32,15 @@ A push to `main` automatically triggers CI/CD deployment to the VPS.
 
 | Parameter | Value |
 |---|---|
-| VPS IP | `217.154.199.218` |
-| Domain | `server.exzellenzschmiede.de` |
+| VPS IP | `your.vps.ip.address` |
+| Domain | `your-domain.example.com` |
 | Backend port | `8100` |
 | Frontend port | `8101` |
 | PostgreSQL | host `localhost`, port `5432` |
 | DB name | `server_iq` |
 | DB user | `serveriq` |
 | Service user | `root` |
-| SSL | Let's Encrypt under `/etc/letsencrypt/live/server.exzellenzschmiede.de/` |
+| SSL | Let's Encrypt under `/etc/letsencrypt/live/your-domain.example.com/` |
 
 ---
 
@@ -213,7 +213,7 @@ Server.IQ/
 **Required GitHub Secrets**:
 | Secret | Value |
 |---|---|
-| `VPS_HOST` | `217.154.199.218` |
+| `VPS_HOST` | `your.vps.ip.address` |
 | `VPS_USER` | `root` |
 | `VPS_SSH_KEY` | Private ED25519 key for root |
 

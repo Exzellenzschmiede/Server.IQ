@@ -14,8 +14,6 @@
 
 A self-hosted VPS admin console — Progressive Web App (PWA) you deploy once on your server and access from any device.
 
-**Live demo:** `https://server.exzellenzschmiede.de`
-
 ---
 
 ## Features
@@ -64,7 +62,7 @@ The backend runs directly on the host as a systemd service (`server-iq.service`)
 ### 1 — Clone and run setup
 
 ```bash
-git clone https://github.com/exzellenzschmiede/server.iq /opt/server-iq
+git clone https://github.com/your-org/server-iq /opt/server-iq
 cd /opt/server-iq
 sudo bash setup.sh
 ```
@@ -122,7 +120,7 @@ Push to `main` triggers `.github/workflows/deploy.yml`:
 
 | Secret | Value |
 |---|---|
-| `VPS_HOST` | `217.154.199.218` |
+| `VPS_HOST` | `your.vps.ip.address` |
 | `VPS_USER` | `root` |
 | `VPS_SSH_KEY` | Private ED25519 key for root |
 
