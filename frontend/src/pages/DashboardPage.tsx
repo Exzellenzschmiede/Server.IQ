@@ -29,6 +29,11 @@ function formatKBps(bytesPerSec: number): string {
   return `${(bytesPerSec / 1024).toFixed(1)} KB/s`;
 }
 
+function formatIORate(bytesPerSec: number): string {
+  if (bytesPerSec >= 1024 * 1024) return `${(bytesPerSec / 1024 / 1024).toFixed(1)} MB/s`;
+  return `${(bytesPerSec / 1024).toFixed(1)} KB/s`;
+}
+
 function formatUptime(seconds: number): string {
   const d = Math.floor(seconds / 86400);
   const h = Math.floor((seconds % 86400) / 3600);
@@ -165,13 +170,13 @@ export default function DashboardPage() {
           <div className="flex justify-around">
             <div className="text-center">
               <p className="text-lg font-bold text-sky-400">
-                {data?.disk_io ? formatBytes(data.disk_io.read_bytes_per_sec) + "/s" : "—"}
+                {data?.disk_io ? formatIORate(data.disk_io.read_bytes_per_sec) : "—"}
               </p>
               <p className="text-xs text-slate-500 mt-1">Read</p>
             </div>
             <div className="text-center">
               <p className="text-lg font-bold text-violet-400">
-                {data?.disk_io ? formatBytes(data.disk_io.write_bytes_per_sec) + "/s" : "—"}
+                {data?.disk_io ? formatIORate(data.disk_io.write_bytes_per_sec) : "—"}
               </p>
               <p className="text-xs text-slate-500 mt-1">Write</p>
             </div>
