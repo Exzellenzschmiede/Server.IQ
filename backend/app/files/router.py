@@ -1,7 +1,8 @@
 import json
 
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 
+from app.auth.service import decode_token
 from app.dependencies import get_current_user, require_admin
 from app.models import User
 
@@ -87,5 +88,8 @@ async def chmod(body: ChmodRequest, _: User = Depends(require_admin)):
 
 
 @router.get("/download")
-async def download(path: str = Query(...), token: str = Query(None), _: User = Depends(get_current_user)):
+async def download(path: str = Query(...), token: str = Query(...)):
+    payload = decode_token(token)
+    if payload is None or payload.get("type") != "access":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
     return download_as_zip(path)
