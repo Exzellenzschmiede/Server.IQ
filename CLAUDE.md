@@ -8,18 +8,18 @@ Self-hosted VPS Admin Console as a Progressive Web App (PWA). Runs as a systemd 
 
 ## Workflow Rules
 
-**Before every prompt: pull the latest state from the development branch.**
+**Before every prompt: pull the latest state from main.**
 
 ```bash
-git pull origin claude/vps-admin-console-VW9pv
+git pull origin main
 ```
 
-**After every completed prompt: commit and push to the development branch.**
+**After every completed prompt: commit and push to main.**
 
 ```bash
 git add -A
 git commit -m "descriptive commit message"
-git push -u origin claude/vps-admin-console-VW9pv
+git push -u origin main
 ```
 
 A push to `main` automatically triggers CI/CD deployment to the VPS.
