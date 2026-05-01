@@ -228,24 +228,21 @@ def run_cleanup(actions: list[str]) -> CleanupResult:
                 if n:
                     msgs.append(f"Removed {n} stopped/dead containers")
 
-            # Collect dangling image IDs and remove them directly
-            r_ids = _run(["docker", "images", "-q", "-f", "dangling=true"])
-            image_ids = [l.strip() for l in r_ids.stdout.strip().splitlines() if l.strip()]
-
-            freed = 0
-            if image_ids:
-                r_rmi = _run(["docker", "rmi"] + image_ids, timeout=300)
-                freed = _parse_reclaimed(r_rmi.stdout)
-                n_del = len([l for l in r_rmi.stdout.splitlines() if l.strip().startswith("Deleted:")])
+            # Prune dangling images — gracefully skips images held by running
+            # containers (unlike docker rmi which errors on them).
+            r_prune = _run(["docker", "image", "prune", "-f"], timeout=300)
+            freed = _parse_reclaimed(r_prune.stdout)
+            n_del = len([l for l in r_prune.stdout.splitlines()
+                         if l.strip().lower().startswith("deleted:")])
+            if n_del:
                 msgs.append(f"Deleted {n_del} image layers")
-                stderr = r_rmi.stderr.strip()
-                if stderr:
-                    msgs.append(stderr[:300])
-                add("docker_images", r_rmi.returncode == 0, freed,
-                    " — ".join(msgs) or "Done")
-            else:
-                msgs.append("No dangling images found")
-                add("docker_images", True, 0, " — ".join(msgs))
+            elif freed == 0:
+                msgs.append("No dangling images to remove")
+            stderr = r_prune.stderr.strip()
+            if stderr:
+                msgs.append(stderr[:300])
+            add("docker_images", r_prune.returncode == 0, freed,
+                " — ".join(msgs) or "Done")
         except Exception as e:
             add("docker_images", False, 0, str(e))
 
