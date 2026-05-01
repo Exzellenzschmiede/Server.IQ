@@ -8,7 +8,9 @@ import RequireAdmin from "./auth/RequireAdmin";
 import AppShell from "./components/layout/AppShell";
 import Spinner from "./components/ui/Spinner";
 import AccessLogPage from "./pages/AccessLogPage";
+import AiChatPage from "./pages/AiChatPage";
 import AppLogsPage from "./pages/AppLogsPage";
+import AuditLogPage from "./pages/AuditLogPage";
 import BandwidthPage from "./pages/BandwidthPage";
 import CleanupPage from "./pages/CleanupPage";
 import NginxPage from "./pages/NginxPage";
@@ -22,11 +24,13 @@ import FilesPage from "./pages/FilesPage";
 import FirewallPage from "./pages/FirewallPage";
 import HealthPage from "./pages/HealthPage";
 import LoginPage from "./pages/LoginPage";
+import NetworkPage from "./pages/NetworkPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import PortsPage from "./pages/PortsPage";
 import ServicesPage from "./pages/ServicesPage";
 import SettingsPage from "./pages/SettingsPage";
 import SetupPage from "./pages/SetupPage";
+import SshKeysPage from "./pages/SshKeysPage";
 import SslPage from "./pages/SslPage";
 import UpdatesPage from "./pages/UpdatesPage";
 import UsersPage from "./pages/UsersPage";
@@ -88,11 +92,15 @@ export default function App() {
                     <Route path="bandwidth" element={<BandwidthPage />} />
                     <Route path="access-log" element={<AccessLogPage />} />
                     <Route path="nginx" element={<NginxPage />} />
+                    <Route path="network" element={<NetworkPage />} />
+                    <Route path="files" element={<FilesPage />} />
+                    <Route path="ai" element={<AiChatPage />} />
                     <Route path="cleanup" element={<RequireAdmin><CleanupPage /></RequireAdmin>} />
                     <Route path="power" element={<RequireAdmin><PowerPage /></RequireAdmin>} />
-                    <Route path="files" element={<FilesPage />} />
+                    <Route path="ssh-keys" element={<RequireAdmin><SshKeysPage /></RequireAdmin>} />
                     <Route path="users" element={<RequireAdmin><UsersPage /></RequireAdmin>} />
                     <Route path="notifications" element={<RequireAdmin><NotificationsPage /></RequireAdmin>} />
+                    <Route path="audit" element={<RequireAdmin><AuditLogPage /></RequireAdmin>} />
                     <Route path="settings" element={<RequireAdmin><SettingsPage /></RequireAdmin>} />
                     <Route path="logs" element={<RequireAdmin><AppLogsPage /></RequireAdmin>} />
                   </Route>

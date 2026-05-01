@@ -32,6 +32,7 @@ from app.system.service import (
     get_system_info,
     get_top_processes,
     kill_process,
+    renice_process,
     service_action,
     system_power_action,
 )
@@ -112,6 +113,15 @@ async def open_ports(_: User = Depends(get_current_user)):
 @router.delete("/processes/{pid}", response_model=KillProcessResponse)
 async def kill_proc(pid: int, _: User = Depends(require_admin)):
     return kill_process(pid)
+
+
+class ReniceRequest(BaseModel):
+    nice: int
+
+
+@router.post("/processes/{pid}/renice", response_model=KillProcessResponse)
+async def renice_proc(pid: int, body: ReniceRequest, _: User = Depends(require_admin)):
+    return renice_process(pid, body.nice)
 
 
 class PowerRequest(BaseModel):

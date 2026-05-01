@@ -292,3 +292,52 @@ PTY shell (bash) via WebSocket. xterm.js on the frontend.
 
 ### `WS /docker/logs/{id}?token=<jwt>`
 Live Docker container log stream.
+
+---
+
+## AI — `/ai`
+
+### `POST /ai/chat`
+Server Assistant chat. Sends conversation history, receives reply with live server context (CPU, RAM, disk, uptime) injected automatically. Requires AI provider configured in Settings.
+
+### `POST /ai/analyze-logs`
+Analyze a log excerpt with AI. Identifies errors, anomalies, and security issues grouped by severity.
+
+### `POST /ai/cron-help`
+Convert natural-language schedule description to a cron expression.
+
+---
+
+## Audit Log — `/audit` *(admin)*
+
+### `GET /audit?limit=100&offset=0&action=&user_email=`
+List audit log entries (most recent first). Filterable by action and user email.
+
+### `DELETE /audit`
+Clear all audit log entries.
+
+---
+
+## SSH Keys — `/ssh-keys`
+
+### `GET /ssh-keys` *(auth)*
+List all public keys from `~/.ssh/authorized_keys`.
+
+### `POST /ssh-keys` *(admin)*
+Add a new public key.
+
+### `DELETE /ssh-keys/{index}` *(admin)*
+Remove key at the given list index.
+
+---
+
+## Network Diagnostics — `/network`
+
+### `POST /network/ping`
+Ping a host from the server. Returns RTT and raw output.
+
+### `POST /network/dns`
+DNS lookup (A, AAAA, MX, TXT, CNAME, NS, PTR, SOA) via `dig`.
+
+### `POST /network/port-check`
+TCP port reachability check via `nc -z`.

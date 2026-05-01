@@ -3,12 +3,18 @@ from pydantic import BaseModel
 
 class AppConfigOut(BaseModel):
     upload_max_size_mb: int
+    ai_provider: str | None = None
+    ai_model: str | None = None
+    ai_api_key: str | None = None
 
     model_config = {"from_attributes": True}
 
 
 class AppConfigUpdate(BaseModel):
     upload_max_size_mb: int | None = None
+    ai_provider: str | None = None
+    ai_model: str | None = None
+    ai_api_key: str | None = None
 
 
 class ServiceConfigOut(BaseModel):

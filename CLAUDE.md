@@ -87,10 +87,14 @@ Server.IQ/
 │   │   ├── cron/                # crontab read / write
 │   │   ├── files/               # Full filesystem browser + editor
 │   │   ├── notifications/       # Telegram + SMTP config + background monitor
-│   │   ├── settings/            # Monitored-service CRUD
+│   │   ├── settings/            # Monitored-service CRUD + app config (AI keys)
 │   │   ├── users/               # User management
 │   │   ├── logs/                # App log streaming (journalctl WebSocket)
 │   │   ├── console/             # PTY WebSocket terminal
+│   │   ├── ai/                  # AI chat, log analysis, cron helper (multi-provider)
+│   │   ├── audit/               # Admin action audit log
+│   │   ├── ssh_keys/            # authorized_keys read/write
+│   │   ├── network/             # Ping, DNS, port check diagnostics
 │   │   └── websockets/          # WebSocket connection manager
 │   ├── requirements.txt
 │   └── Dockerfile               # (kept for reference, not used in production)
@@ -169,12 +173,19 @@ Server.IQ/
 
 ### Other modules
 - **`/api/v1/firewall`** — UFW status, enable/disable, add/delete rules (admin)
-- **`/api/v1/ssl`** — Let's Encrypt certificate expiry list
+- **`/api/v1/ssl`** — Let's Encrypt certificate expiry list + per-domain renewal
 - **`/api/v1/cron`** — Read, add, delete crontab entries (admin for write)
 - **`/api/v1/files`** — Full filesystem browser + read/write (no path restrictions)
 - **`/api/v1/notifications`** — Telegram + SMTP config + test send (admin)
 - **`/api/v1/settings/services`** — Monitored-service CRUD (admin)
+- **`/api/v1/settings/app`** — App config including AI provider/model/key (admin)
 - **`/api/v1/users`** — User management (admin)
+- **`/api/v1/ai`** — AI chat, log analysis, cron expression helper (requires API key in Settings)
+- **`/api/v1/audit`** — Audit log: admin action history (admin)
+- **`/api/v1/ssh-keys`** — Read/write `~/.ssh/authorized_keys` (admin for write)
+- **`/api/v1/network`** — Ping, DNS lookup, port check from the server
+- **`DELETE /api/v1/system/processes/{pid}`** — Kill process (admin)
+- **`POST /api/v1/system/processes/{pid}/renice`** — Renice process (admin)
 - **`WS /logs/stream`** — Live journalctl stream for the server-iq service itself
 - **`WS /console`** — PTY bash shell via WebSocket
 

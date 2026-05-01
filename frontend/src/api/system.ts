@@ -69,6 +69,11 @@ export async function killProcess(pid: number): Promise<{ success: boolean; pid:
   return data;
 }
 
+export async function reniceProcess(pid: number, nice: number): Promise<{ success: boolean; pid: number; message: string }> {
+  const { data } = await client.post(`/system/processes/${pid}/renice`, { nice });
+  return data;
+}
+
 export async function systemPower(action: "reboot" | "shutdown"): Promise<{ success: boolean; action: string; message: string }> {
   const { data } = await client.post("/system/power", { action });
   return data;

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { analyzeLogs } from "../api/ai";
 
 const MAX_LINES = 2000;
 
@@ -9,6 +10,11 @@ export default function AppLogsPage() {
   const [filter, setFilter] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
+
+  // AI analysis state
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
@@ -35,6 +41,24 @@ export default function AppLogsPage() {
     }
   }, [lines, autoScroll]);
 
+  async function handleAnalyze() {
+    if (lines.length === 0) return;
+    setAnalyzing(true);
+    setAnalysis(null);
+    setAnalyzeError(null);
+    try {
+      const sample = lines.slice(-300).join("\n");
+      const res = await analyzeLogs(sample, "Server.IQ application logs (journalctl)");
+      setAnalysis(res.analysis);
+    } catch (e: unknown) {
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        ?? "Analysis failed. Make sure an API key is configured in Settings.";
+      setAnalyzeError(detail);
+    } finally {
+      setAnalyzing(false);
+    }
+  }
+
   const filterLower = filter.toLowerCase();
   const visibleLines = filter
     ? lines.filter((l) => l.toLowerCase().includes(filterLower))
@@ -58,13 +82,28 @@ export default function AppLogsPage() {
             Auto-scroll
           </label>
           <button
-            onClick={() => setLines([])}
-            className="btn-ghost text-xs py-1 px-2"
+            onClick={handleAnalyze}
+            disabled={analyzing || lines.length === 0}
+            className="btn-ghost text-xs py-1 px-2 text-indigo-400 hover:text-indigo-300 disabled:opacity-40"
           >
-            Clear
+            {analyzing ? "Analyzing…" : "✦ Analyze with AI"}
           </button>
+          <button onClick={() => setLines([])} className="btn-ghost text-xs py-1 px-2">Clear</button>
         </div>
       </div>
+
+      {/* AI Analysis panel */}
+      {(analysis || analyzeError) && (
+        <div className={`mb-3 rounded-lg p-4 text-sm border ${analysis ? "bg-indigo-950/40 border-indigo-500/30" : "bg-red-900/20 border-red-500/30"}`}>
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs font-semibold text-indigo-300 mb-2">✦ AI Analysis</p>
+            <button onClick={() => { setAnalysis(null); setAnalyzeError(null); }} className="text-slate-500 hover:text-slate-300 text-xs">✕</button>
+          </div>
+          <p className={`whitespace-pre-wrap text-xs leading-relaxed ${analysis ? "text-slate-200" : "text-red-400"}`}>
+            {analysis ?? analyzeError}
+          </p>
+        </div>
+      )}
 
       <div className="mb-2 flex items-center gap-2">
         <input
@@ -75,17 +114,10 @@ export default function AppLogsPage() {
           className="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-xs font-mono focus:outline-none focus:border-indigo-500 text-slate-200 placeholder-slate-600"
         />
         {filter && (
-          <span className="text-xs text-slate-500 whitespace-nowrap">
-            {visibleLines.length} / {lines.length}
-          </span>
+          <span className="text-xs text-slate-500 whitespace-nowrap">{visibleLines.length} / {lines.length}</span>
         )}
         {filter && (
-          <button
-            onClick={() => setFilter("")}
-            className="text-xs text-slate-500 hover:text-slate-300 px-1"
-          >
-            ✕
-          </button>
+          <button onClick={() => setFilter("")} className="text-xs text-slate-500 hover:text-slate-300 px-1">✕</button>
         )}
       </div>
 

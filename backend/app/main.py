@@ -14,12 +14,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.access_log.router import router as access_log_router
+from app.ai.router import router as ai_router
+from app.audit.router import router as audit_router
 from app.auth.router import router as auth_router
 from app.cleanup.router import router as cleanup_router
 from app.bandwidth.router import router as bandwidth_router
 from app.config import settings
+from app.network.router import router as network_router
 from app.nginx_mgmt.router import router as nginx_router
 from app.console.router import router as console_router
+from app.ssh_keys.router import router as ssh_keys_router
 from app.cron.router import router as cron_router
 from app.database import AsyncSessionLocal, engine
 from app.docker_mgmt.router import router as docker_router
@@ -27,7 +31,7 @@ from app.fail2ban.router import router as fail2ban_router
 from app.files.router import router as files_router
 from app.firewall.router import router as firewall_router
 from app.logs.router import router as logs_router
-from app.models import AlertHistory, AppConfig, Base, MetricSnapshot, MonitoredService, NotificationConfig, ServiceAlertState
+from app.models import AlertHistory, AppConfig, AuditLog, Base, MetricSnapshot, MonitoredService, NotificationConfig, ServiceAlertState
 from app.notifications.router import router as notifications_router
 from app.settings.router import router as settings_router
 from app.ssl_certs.router import router as ssl_router
@@ -160,6 +164,58 @@ async def _get_upload_limit_bytes() -> int:
     return _upload_limit_cache["bytes"]
 
 
+_AUDIT_RULES: list[tuple[str, str, str]] = [
+    # (method, path_prefix, action_label)
+    ("POST",   "/api/v1/auth/login",           "auth.login"),
+    ("POST",   "/api/v1/auth/logout",          "auth.logout"),
+    ("POST",   "/api/v1/docker/containers/",   "docker.action"),
+    ("DELETE", "/api/v1/docker/containers/",   "docker.delete"),
+    ("POST",   "/api/v1/firewall/rules",       "firewall.add_rule"),
+    ("DELETE", "/api/v1/firewall/rules/",      "firewall.delete_rule"),
+    ("POST",   "/api/v1/files/write",          "files.write"),
+    ("DELETE", "/api/v1/files/delete",         "files.delete"),
+    ("POST",   "/api/v1/system/power",         "system.power"),
+    ("POST",   "/api/v1/system/services/",     "system.service_action"),
+    ("DELETE", "/api/v1/system/processes/",    "system.kill_process"),
+    ("POST",   "/api/v1/system/processes/",    "system.renice_process"),
+    ("POST",   "/api/v1/cleanup",              "cleanup.run"),
+    ("POST",   "/api/v1/ssh-keys",             "ssh_keys.add"),
+    ("DELETE", "/api/v1/ssh-keys/",            "ssh_keys.delete"),
+    ("POST",   "/api/v1/settings",             "settings.update"),
+    ("PATCH",  "/api/v1/settings",             "settings.update"),
+    ("POST",   "/api/v1/users",                "users.create"),
+    ("DELETE", "/api/v1/users/",               "users.delete"),
+]
+
+
+class AuditMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        method = request.method
+        path = request.url.path
+        # Only log mutating operations that match a rule
+        for rule_method, rule_prefix, action in _AUDIT_RULES:
+            if method == rule_method and path.startswith(rule_prefix):
+                if response.status_code < 400:
+                    try:
+                        from app.audit.service import log_action
+                        from app.auth.service import decode_token
+                        auth = request.headers.get("authorization", "")
+                        user_email = None
+                        if auth.startswith("Bearer "):
+                            payload = decode_token(auth[7:])
+                            if payload:
+                                user_email = payload.get("sub")
+                        ip = request.client.host if request.client else None
+                        resource = path
+                        import asyncio
+                        asyncio.create_task(log_action(action, user_email, resource, None, ip))
+                    except Exception:
+                        pass
+                break
+        return response
+
+
 class UploadSizeLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         if request.url.path.endswith("/files/upload") and request.method == "POST":
@@ -202,6 +258,7 @@ app = FastAPI(title="Server.IQ API", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+app.add_middleware(AuditMiddleware)
 app.add_middleware(UploadSizeLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -229,3 +286,7 @@ app.include_router(fail2ban_router,      prefix="/api/v1/fail2ban",      tags=["
 app.include_router(bandwidth_router,     prefix="/api/v1/bandwidth",     tags=["bandwidth"])
 app.include_router(cleanup_router,       prefix="/api/v1/cleanup",       tags=["cleanup"])
 app.include_router(nginx_router,         prefix="/api/v1/nginx",         tags=["nginx"])
+app.include_router(ai_router,            prefix="/api/v1/ai",            tags=["ai"])
+app.include_router(audit_router,         prefix="/api/v1/audit",         tags=["audit"])
+app.include_router(ssh_keys_router,      prefix="/api/v1/ssh-keys",      tags=["ssh-keys"])
+app.include_router(network_router,       prefix="/api/v1/network",       tags=["network"])

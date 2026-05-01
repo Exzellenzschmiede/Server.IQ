@@ -499,6 +499,21 @@ def kill_process(pid: int):
         return KillProcessResponse(success=False, pid=pid, message=f"Permission denied for PID {pid}")
 
 
+def renice_process(pid: int, nice: int):
+    from app.system.schemas import KillProcessResponse
+    if not (-20 <= nice <= 19):
+        return KillProcessResponse(success=False, pid=pid, message="Nice value must be between -20 and 19")
+    try:
+        proc = psutil.Process(pid)
+        name = proc.name()
+        proc.nice(nice)
+        return KillProcessResponse(success=True, pid=pid, message=f"Process '{name}' (PID {pid}) reniced to {nice}")
+    except psutil.NoSuchProcess:
+        return KillProcessResponse(success=False, pid=pid, message=f"Process {pid} not found")
+    except psutil.AccessDenied:
+        return KillProcessResponse(success=False, pid=pid, message=f"Permission denied for PID {pid}")
+
+
 def system_power_action(action: str):
     from app.system.schemas import PowerActionResponse
     if action not in ("reboot", "shutdown"):

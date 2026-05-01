@@ -61,6 +61,23 @@ class AppConfig(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
     upload_max_size_mb: Mapped[int] = mapped_column(Integer, default=100)
+    ai_provider: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    ai_model: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    ai_api_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+    user_email: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    action: Mapped[str] = mapped_column(String(128), nullable=False)
+    resource: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class NotificationConfig(Base):

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { addCronJob, deleteCronJob, getCronJobs } from "../api/cron";
+import { cronHelp } from "../api/ai";
 import type { CronJob } from "../types/cron";
 
 const PRESETS = [
@@ -19,6 +20,12 @@ export default function CronPage() {
 
   const [schedule, setSchedule] = useState("");
   const [command, setCommand] = useState("");
+
+  // AI Cron Helper
+  const [aiInput, setAiInput] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<{ expression: string; explanation: string } | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   async function reload() {
     setLoading(true);
@@ -70,6 +77,32 @@ export default function CronPage() {
     }
   }
 
+  async function handleAiHelp(e: React.FormEvent) {
+    e.preventDefault();
+    if (!aiInput.trim()) return;
+    setAiLoading(true);
+    setAiResult(null);
+    setAiError(null);
+    try {
+      const res = await cronHelp(aiInput.trim());
+      setAiResult({ expression: res.expression, explanation: res.explanation });
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        ?? "AI request failed. Make sure an API key is configured in Settings.";
+      setAiError(detail);
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  function applyAiExpression() {
+    if (aiResult) {
+      setSchedule(aiResult.expression);
+      setAiResult(null);
+      setAiInput("");
+    }
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-4">
       <h1 className="text-xl font-bold">Cron Jobs</h1>
@@ -77,6 +110,45 @@ export default function CronPage() {
       {msg && (
         <div className="card bg-indigo-600/10 border border-indigo-500/30 text-indigo-300 text-sm">{msg}</div>
       )}
+
+      {/* AI Cron Helper */}
+      <div className="card space-y-3 border border-indigo-500/20 bg-indigo-950/20">
+        <h2 className="text-sm font-semibold text-indigo-300">✦ AI Cron Expression Helper</h2>
+        <form onSubmit={handleAiHelp} className="flex gap-2">
+          <input
+            value={aiInput}
+            onChange={(e) => setAiInput(e.target.value)}
+            placeholder='e.g. "every Monday at 3am" or "twice a day at noon and midnight"'
+            className="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+          />
+          <button
+            type="submit"
+            disabled={aiLoading || !aiInput.trim()}
+            className="px-4 py-1.5 bg-indigo-600/30 text-indigo-300 text-sm rounded hover:bg-indigo-600/40 disabled:opacity-40 transition-colors whitespace-nowrap"
+          >
+            {aiLoading ? "Thinking…" : "Generate"}
+          </button>
+        </form>
+
+        {aiResult && (
+          <div className="bg-slate-900 rounded-lg p-3 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <code className="text-indigo-300 font-mono text-sm">{aiResult.expression}</code>
+              <button
+                onClick={applyAiExpression}
+                className="text-xs px-3 py-1 bg-indigo-600/20 text-indigo-300 rounded hover:bg-indigo-600/30 transition-colors whitespace-nowrap"
+              >
+                Use this ↓
+              </button>
+            </div>
+            <p className="text-xs text-slate-400 leading-relaxed">{aiResult.explanation}</p>
+          </div>
+        )}
+
+        {aiError && (
+          <p className="text-xs text-red-400">{aiError}</p>
+        )}
+      </div>
 
       {/* Add form */}
       <div className="card space-y-3">
