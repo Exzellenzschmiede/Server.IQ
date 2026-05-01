@@ -1,6 +1,6 @@
 # User Guide
 
-Server.IQ is a self-hosted VPS admin console accessible at `https://server.exzellenzschmiede.de`.
+Server.IQ is a self-hosted VPS admin console accessible at `https://your-domain.example.com`.
 
 ---
 
