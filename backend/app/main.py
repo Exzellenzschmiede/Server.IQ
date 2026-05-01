@@ -17,7 +17,6 @@ from app.access_log.router import router as access_log_router
 from app.auth.router import router as auth_router
 from app.cleanup.router import router as cleanup_router
 from app.bandwidth.router import router as bandwidth_router
-from app.compose.router import router as compose_router
 from app.config import settings
 from app.nginx_mgmt.router import router as nginx_router
 from app.console.router import router as console_router
@@ -228,6 +227,5 @@ app.include_router(access_log_router,    prefix="/api/v1/access-log",    tags=["
 app.include_router(updates_router,       prefix="/api/v1/updates",       tags=["updates"])
 app.include_router(fail2ban_router,      prefix="/api/v1/fail2ban",      tags=["fail2ban"])
 app.include_router(bandwidth_router,     prefix="/api/v1/bandwidth",     tags=["bandwidth"])
-app.include_router(compose_router,       prefix="/api/v1/compose",       tags=["compose"])
 app.include_router(cleanup_router,       prefix="/api/v1/cleanup",       tags=["cleanup"])
 app.include_router(nginx_router,         prefix="/api/v1/nginx",         tags=["nginx"])

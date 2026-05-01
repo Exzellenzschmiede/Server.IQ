@@ -7,7 +7,6 @@ const NAV = [
   { to: "/health",     label: "Health",      icon: "🩺" },
   { to: "/services",   label: "Services",    icon: "⚡" },
   { to: "/containers", label: "Containers",  icon: "🐳" },
-  { to: "/compose",    label: "Compose",     icon: "📦" },
   { to: "/firewall",   label: "Firewall",    icon: "🛡" },
   { to: "/fail2ban",   label: "Fail2ban",    icon: "🚫" },
   { to: "/ports",      label: "Ports",       icon: "🔌" },

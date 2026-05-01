@@ -11,7 +11,6 @@ import AppLogsPage from "./pages/AppLogsPage";
 import BandwidthPage from "./pages/BandwidthPage";
 import CleanupPage from "./pages/CleanupPage";
 import NginxPage from "./pages/NginxPage";
-import ComposePage from "./pages/ComposePage";
 import ConsolePage from "./pages/ConsolePage";
 import ContainerLogsPage from "./pages/ContainerLogsPage";
 import ContainersPage from "./pages/ContainersPage";
@@ -76,7 +75,6 @@ export default function App() {
                     <Route path="services" element={<ServicesPage />} />
                     <Route path="containers" element={<ContainersPage />} />
                     <Route path="containers/:id/logs" element={<ContainerLogsPage />} />
-                    <Route path="compose" element={<ComposePage />} />
                     <Route path="console" element={<ConsolePage />} />
                     <Route path="health" element={<HealthPage />} />
                     <Route path="firewall" element={<FirewallPage />} />
