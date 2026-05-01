@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -39,6 +39,20 @@ from app.system.router import router as system_router
 from app.system.service import get_all_metrics, get_services
 from app.updates.router import router as updates_router
 from app.users.router import router as users_router
+
+
+async def _run_column_migrations(conn) -> None:
+    """Add new columns to existing tables without dropping data."""
+    migrations = [
+        "ALTER TABLE app_config ADD COLUMN IF NOT EXISTS ai_provider VARCHAR(32)",
+        "ALTER TABLE app_config ADD COLUMN IF NOT EXISTS ai_model VARCHAR(128)",
+        "ALTER TABLE app_config ADD COLUMN IF NOT EXISTS ai_api_key VARCHAR(512)",
+    ]
+    for sql in migrations:
+        try:
+            await conn.execute(text(sql))
+        except Exception:
+            pass
 
 
 async def _seed_default_services(db: AsyncSession) -> None:
@@ -234,6 +248,7 @@ class UploadSizeLimitMiddleware(BaseHTTPMiddleware):
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await _run_column_migrations(conn)
     async with AsyncSessionLocal() as db:
         await _seed_default_services(db)
         await _migrate_service_hosts(db)
