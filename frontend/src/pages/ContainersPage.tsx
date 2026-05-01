@@ -1,12 +1,30 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { getContainerStats } from "../api/docker";
+import LogViewer from "../components/containers/LogViewer";
 import ContainerActions from "../components/containers/ContainerActions";
 import StatusBadge from "../components/ui/StatusBadge";
+import { useContainerLogs } from "../hooks/useContainerLogs";
 import { useContainers } from "../hooks/useContainers";
 import type { ContainerInfo, ContainerStats } from "../types/docker";
 
 type Filter = "all" | "running" | "stopped";
+
+function ContainerLogModal({ id, name, onClose }: { id: string; name: string; onClose: () => void }) {
+  const { lines, connected, clear, reconnect } = useContainerLogs(id);
+  return (
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+      <div className="bg-slate-800 border border-slate-700 rounded-xl w-full max-w-5xl h-[90vh] flex flex-col shadow-2xl">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 shrink-0">
+          <span className="font-semibold text-slate-200">Logs — {name}</span>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-200 text-lg leading-none">✕</button>
+        </div>
+        <div className="flex-1 min-h-0">
+          <LogViewer lines={lines} connected={connected} onClear={clear} onReconnect={reconnect} />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function fmt(bytes: number): string {
   if (bytes >= 1024 ** 3) return (bytes / 1024 ** 3).toFixed(1) + " GB";
@@ -17,11 +35,12 @@ function fmt(bytes: number): string {
 function ContainerRow({
   container,
   onRefresh,
+  onShowLogs,
 }: {
   container: ContainerInfo;
   onRefresh: () => void;
+  onShowLogs: (c: ContainerInfo) => void;
 }) {
-  const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
   const [stats, setStats] = useState<ContainerStats | null>(null);
   const [showEnv, setShowEnv] = useState(false);
@@ -62,7 +81,7 @@ function ContainerRow({
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <StatusBadge status={container.status} />
           <button
-            onClick={() => navigate(`/containers/${container.id}/logs`)}
+            onClick={() => onShowLogs(container)}
             className="text-xs text-slate-400 hover:text-slate-200 border border-slate-700 rounded px-2 py-0.5 transition-colors"
           >
             Logs
@@ -155,6 +174,7 @@ export default function ContainersPage() {
   const { data, loading, error, refresh } = useContainers(10000);
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
+  const [logsContainer, setLogsContainer] = useState<ContainerInfo | null>(null);
 
   const containers =
     data?.containers.filter((c) => {
@@ -171,6 +191,13 @@ export default function ContainersPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-4">
+      {logsContainer && (
+        <ContainerLogModal
+          id={logsContainer.id}
+          name={logsContainer.name}
+          onClose={() => setLogsContainer(null)}
+        />
+      )}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-xl font-bold">Containers</h1>
         <div className="flex items-center gap-2 text-sm text-slate-400">
@@ -221,7 +248,7 @@ export default function ContainersPage() {
           <p className="py-8 text-center text-slate-500 text-sm">No containers found</p>
         ) : (
           containers.map((c) => (
-            <ContainerRow key={c.id} container={c} onRefresh={refresh} />
+            <ContainerRow key={c.id} container={c} onRefresh={refresh} onShowLogs={setLogsContainer} />
           ))
         )}
       </div>
