@@ -7,3 +7,9 @@ class CertInfo(BaseModel):
     not_after: str
     days_remaining: int
     expired: bool
+
+
+class RenewResponse(BaseModel):
+    domain: str
+    success: bool
+    output: str

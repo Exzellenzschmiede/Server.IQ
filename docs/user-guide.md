@@ -103,6 +103,8 @@ Shows all Let's Encrypt certificates under `/etc/letsencrypt/live/`:
 - Valid from / expires on dates
 - Days remaining (color-coded: green > 30 days, yellow ≤ 30, red ≤ 7 or expired)
 
+**↻ Erneuern** *(admin only)* — runs `certbot renew --cert-name <domain>` on the server. A spinner is shown while certbot runs (up to 120 s). The full certbot output is displayed afterwards so you can see whether the certificate was actually renewed or skipped (certbot skips renewal if the certificate is still valid for more than 30 days). On success the expiry date refreshes automatically.
+
 ---
 
 ## Cron Jobs

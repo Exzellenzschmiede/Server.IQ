@@ -5,3 +5,9 @@ export interface CertInfo {
   days_remaining: number;
   expired: boolean;
 }
+
+export interface RenewResponse {
+  domain: string;
+  success: boolean;
+  output: string;
+}

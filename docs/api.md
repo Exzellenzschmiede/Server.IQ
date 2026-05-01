@@ -188,6 +188,14 @@ Reads all certificates from `/etc/letsencrypt/live/` via `openssl x509`.
 [{ "domain": "example.com", "not_before": "...", "not_after": "...", "days_remaining": 72, "expired": false }]
 ```
 
+### `POST /ssl/{domain}/renew` *(admin)*
+Runs `certbot renew --cert-name <domain> --non-interactive`. Timeout: 120 s.
+
+**Response**
+```json
+{ "domain": "example.com", "success": true, "output": "...certbot stdout/stderr..." }
+```
+
 ---
 
 ## Cron Jobs — `/cron`

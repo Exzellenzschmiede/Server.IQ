@@ -1,8 +1,13 @@
+import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .schemas import CertInfo
+from fastapi import HTTPException, status
+
+from .schemas import CertInfo, RenewResponse
+
+_DOMAIN_RE = re.compile(r"^[a-zA-Z0-9._-]{1,253}$")
 
 _LETSENCRYPT_BASE = Path("/etc/letsencrypt/live")
 
@@ -46,6 +51,27 @@ def _read_cert(cert_path: Path) -> CertInfo | None:
         )
     except Exception:
         return None
+
+
+def renew_cert(domain: str) -> RenewResponse:
+    if not _DOMAIN_RE.match(domain):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid domain name")
+    cert_dir = _LETSENCRYPT_BASE / domain
+    if not cert_dir.is_dir():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Certificate not found")
+    try:
+        r = subprocess.run(
+            ["certbot", "renew", "--cert-name", domain, "--non-interactive"],
+            capture_output=True, text=True, timeout=120,
+        )
+        output = (r.stdout + r.stderr).strip()
+        return RenewResponse(domain=domain, success=r.returncode == 0, output=output)
+    except FileNotFoundError:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="certbot not found")
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="certbot timed out after 120 s")
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
 
 
 def get_certs() -> list[CertInfo]:
