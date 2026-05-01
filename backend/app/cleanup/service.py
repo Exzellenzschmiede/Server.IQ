@@ -180,7 +180,7 @@ def scan() -> CleanupScanResult:
     items.append(CleanableItem(
         key="tmp_files",
         label="Temporary files (/tmp)",
-        description="Files in /tmp older than 1 day",
+        description="All files and directories in /tmp (in-use items are skipped automatically)",
         size_bytes=tmp_size,
         count=tmp_count,
         available=tmp_size > 0,
@@ -273,24 +273,28 @@ def run_cleanup(actions: list[str]) -> CleanupResult:
         add("log_archives", errors == 0, freed, msg)
 
     if "tmp_files" in actions:
+        import shutil
         freed = 0
         removed = 0
-        import time
-        cutoff = time.time() - 86400
+        skipped = 0
         for f in Path("/tmp").iterdir():
             try:
-                if f.stat().st_mtime < cutoff:
-                    sz = f.stat().st_size if f.is_file() else _dir_size(f)
-                    if f.is_file():
-                        f.unlink()
-                    else:
-                        import shutil
-                        shutil.rmtree(f, ignore_errors=True)
-                    freed += sz
-                    removed += 1
+                sz = f.stat().st_size if f.is_file() else _dir_size(f)
+                if f.is_file() or f.is_symlink():
+                    f.unlink()
+                elif f.is_dir():
+                    shutil.rmtree(f)
+                else:
+                    skipped += 1
+                    continue
+                freed += sz
+                removed += 1
             except OSError:
-                pass
-        add("tmp_files", True, freed, f"Removed {removed} old items from /tmp")
+                skipped += 1
+        msg = f"Removed {removed} items from /tmp"
+        if skipped:
+            msg += f" ({skipped} skipped — in use or protected)"
+        add("tmp_files", True, freed, msg)
 
     total_freed = sum(r.freed_bytes for r in results)
     return CleanupResult(results=results, total_freed_bytes=total_freed)
