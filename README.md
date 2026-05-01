@@ -16,6 +16,10 @@ A self-hosted VPS admin console — Progressive Web App (PWA) you deploy once on
 
 ---
 
+<img width="1409" height="664" alt="image" src="https://github.com/user-attachments/assets/f012b471-417a-4cd9-9948-390dce937af7" />
+
+---
+
 ## Features
 
 | Area | What you get |
