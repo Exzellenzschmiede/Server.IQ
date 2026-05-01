@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { aiChat } from "../api/ai";
 import type { ChatMessage } from "../api/ai";
+import Markdown from "../components/ui/Markdown";
 
 interface DisplayMessage {
   role: "user" | "assistant" | "error";
@@ -111,9 +112,12 @@ export default function AiChatPage() {
                 ? "bg-red-600/20 text-red-300 border border-red-500/30 rounded-bl-sm"
                 : "bg-slate-700/60 text-slate-200 rounded-bl-sm"
             }`}>
-              <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
+              {m.role === "assistant"
+                ? <Markdown>{m.content}</Markdown>
+                : <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.content}</p>
+              }
               {m.role === "assistant" && m.model && (
-                <p className="text-[10px] text-slate-500 mt-1">{m.provider} / {m.model}</p>
+                <p className="text-[10px] text-slate-500 mt-2">{m.provider} / {m.model}</p>
               )}
             </div>
           </div>
