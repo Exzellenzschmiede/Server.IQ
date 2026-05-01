@@ -1,15 +1,21 @@
 import asyncio
+import json
+import re
+import subprocess
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_admin
 from app.models import AppConfig, User
 from app.system.service import get_all_metrics, get_system_info, get_top_processes
 
 from .schemas import (
+    AgentExecutionResult,
+    AgentRequest,
+    AgentResponse,
     AnalyzeLogsRequest,
     AnalyzeLogsResponse,
     ChatMessage,
@@ -139,3 +145,85 @@ async def cron_help(
     raw = await call_ai(provider, model, api_key, system, messages)
     expression, explanation = parse_cron_response(raw)
     return CronHelpResponse(expression=expression, explanation=explanation, provider=provider, model=model)
+
+
+_MAX_AGENT_ITERATIONS = 8
+_AGENT_CMD_TIMEOUT = 30
+
+
+def _run_shell(cmd: str) -> AgentExecutionResult:
+    try:
+        result = subprocess.run(
+            ["bash", "-c", cmd],
+            capture_output=True,
+            text=True,
+            timeout=_AGENT_CMD_TIMEOUT,
+        )
+        return AgentExecutionResult(
+            command=cmd,
+            stdout=result.stdout[:4000],
+            stderr=result.stderr[:1000],
+            exit_code=result.returncode,
+        )
+    except subprocess.TimeoutExpired:
+        return AgentExecutionResult(command=cmd, stdout="", stderr=f"Command timed out after {_AGENT_CMD_TIMEOUT}s", exit_code=-1)
+    except Exception as exc:
+        return AgentExecutionResult(command=cmd, stdout="", stderr=str(exc), exit_code=-1)
+
+
+@router.post("/agent", response_model=AgentResponse)
+async def agent(
+    body: AgentRequest,
+    user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    provider, model, api_key = await _get_ai_config(db)
+    context = await asyncio.to_thread(_build_server_context)
+
+    system = (
+        "You are Server.IQ Agent, an AI assistant embedded in a VPS admin console with the ability to execute "
+        "shell commands directly on this server.\n\n"
+        "When you need to run a command, embed it like this: <execute>your command here</execute>\n"
+        "You may include multiple <execute> blocks in one response.\n"
+        "After each round of executions you will receive the output and can continue or provide a final answer.\n\n"
+        "Guidelines:\n"
+        "- Briefly state what you are about to do before executing commands\n"
+        "- Prefer targeted, reversible commands; avoid destructive operations unless explicitly asked\n"
+        "- If a command fails, diagnose and try an alternative approach\n"
+        "- When done, give a clear summary of what was accomplished\n\n"
+        f"=== LIVE SERVER DATA ===\n{context}\n=== END SERVER DATA ==="
+    )
+
+    messages: list[ChatMessage] = list(body.messages)
+    all_executions: list[AgentExecutionResult] = []
+
+    for _ in range(_MAX_AGENT_ITERATIONS):
+        reply = await call_ai(provider, model, api_key, system, messages)
+        blocks = re.findall(r"<execute>(.*?)</execute>", reply, re.DOTALL)
+
+        if not blocks:
+            return AgentResponse(reply=reply, executions=all_executions, provider=provider, model=model)
+
+        messages.append(ChatMessage(role="assistant", content=reply))
+
+        result_parts: list[str] = []
+        for cmd in blocks:
+            cmd = cmd.strip()
+            res = await asyncio.to_thread(_run_shell, cmd)
+            all_executions.append(res)
+            result_parts.append(
+                f"<result command={json.dumps(cmd)}>\n"
+                f"exit_code: {res.exit_code}\n"
+                f"stdout:\n{res.stdout}\n"
+                f"stderr:\n{res.stderr}\n"
+                f"</result>"
+            )
+
+        messages.append(ChatMessage(role="user", content="\n\n".join(result_parts)))
+
+    return AgentResponse(
+        reply="Agent reached the maximum number of iterations without completing the task.",
+        executions=all_executions,
+        provider=provider,
+        model=model,
+    )

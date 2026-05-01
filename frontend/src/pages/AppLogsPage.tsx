@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { analyzeLogs } from "../api/ai";
+import Markdown from "../components/ui/Markdown";
 
 const MAX_LINES = 2000;
 
@@ -99,9 +100,10 @@ export default function AppLogsPage() {
             <p className="text-xs font-semibold text-indigo-300 mb-2">✦ AI Analysis</p>
             <button onClick={() => { setAnalysis(null); setAnalyzeError(null); }} className="text-slate-500 hover:text-slate-300 text-xs">✕</button>
           </div>
-          <p className={`whitespace-pre-wrap text-xs leading-relaxed ${analysis ? "text-slate-200" : "text-red-400"}`}>
-            {analysis ?? analyzeError}
-          </p>
+          {analysis
+            ? <div className="text-xs leading-relaxed text-slate-200"><Markdown>{analysis}</Markdown></div>
+            : <p className="text-xs leading-relaxed text-red-400">{analyzeError}</p>
+          }
         </div>
       )}
 

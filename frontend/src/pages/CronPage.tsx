@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { addCronJob, deleteCronJob, getCronJobs } from "../api/cron";
 import { cronHelp } from "../api/ai";
 import type { CronJob } from "../types/cron";
+import Markdown from "../components/ui/Markdown";
 
 const PRESETS = [
   { label: "Daily 2:00",       value: "0 2 * * *" },
@@ -141,7 +142,7 @@ export default function CronPage() {
                 Use this ↓
               </button>
             </div>
-            <p className="text-xs text-slate-400 leading-relaxed">{aiResult.explanation}</p>
+            <div className="text-xs text-slate-400 leading-relaxed"><Markdown>{aiResult.explanation}</Markdown></div>
           </div>
         )}
 

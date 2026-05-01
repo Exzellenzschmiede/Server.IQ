@@ -45,3 +45,22 @@ export async function cronHelp(description: string): Promise<CronHelpResponse> {
   const { data } = await client.post<CronHelpResponse>("/ai/cron-help", { description });
   return data;
 }
+
+export interface AgentExecution {
+  command: string;
+  stdout: string;
+  stderr: string;
+  exit_code: number;
+}
+
+export interface AgentResponse {
+  reply: string;
+  executions: AgentExecution[];
+  provider: string;
+  model: string;
+}
+
+export async function aiAgent(messages: ChatMessage[]): Promise<AgentResponse> {
+  const { data } = await client.post<AgentResponse>("/ai/agent", { messages });
+  return data;
+}

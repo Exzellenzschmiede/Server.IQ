@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { aiChat } from "../api/ai";
-import type { ChatMessage } from "../api/ai";
+import { aiAgent, aiChat } from "../api/ai";
+import type { AgentExecution, ChatMessage } from "../api/ai";
 import Markdown from "../components/ui/Markdown";
 
 interface DisplayMessage {
@@ -8,6 +8,7 @@ interface DisplayMessage {
   content: string;
   provider?: string;
   model?: string;
+  executions?: AgentExecution[];
 }
 
 const SUGGESTIONS = [
@@ -18,10 +19,50 @@ const SUGGESTIONS = [
   "How can I free up memory on this server?",
 ];
 
+const AGENT_SUGGESTIONS = [
+  "Restart the nginx service",
+  "Show me all running Docker containers",
+  "Check disk usage and clean up if needed",
+  "List the 10 largest files under /var",
+  "Show recent auth failures from the journal",
+];
+
+function ExecutionBlock({ exec }: { exec: AgentExecution }) {
+  const [open, setOpen] = useState(true);
+  const success = exec.exit_code === 0;
+  return (
+    <div className="mt-2 rounded-lg border border-slate-600/50 overflow-hidden text-xs font-mono">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between gap-2 px-3 py-1.5 bg-slate-800/80 hover:bg-slate-800 transition-colors text-left"
+      >
+        <span className="flex items-center gap-2 min-w-0">
+          <span className={success ? "text-emerald-400" : "text-red-400"}>
+            {success ? "✓" : "✗"}
+          </span>
+          <code className="text-slate-300 truncate">{exec.command}</code>
+        </span>
+        <span className="text-slate-600 shrink-0">{open ? "▾" : "▸"}</span>
+      </button>
+      {open && (exec.stdout || exec.stderr) && (
+        <div className="px-3 py-2 bg-slate-950/60 space-y-1 max-h-48 overflow-y-auto">
+          {exec.stdout && (
+            <pre className="text-slate-300 whitespace-pre-wrap break-all leading-relaxed">{exec.stdout}</pre>
+          )}
+          {exec.stderr && (
+            <pre className="text-red-400 whitespace-pre-wrap break-all leading-relaxed">{exec.stderr}</pre>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AiChatPage() {
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [agentMode, setAgentMode] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -43,13 +84,24 @@ export default function AiChatPage() {
         .filter((m) => m.role === "user" || m.role === "assistant")
         .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
-      const res = await aiChat(history);
-      setMessages((prev) => [...prev, {
-        role: "assistant",
-        content: res.reply,
-        provider: res.provider,
-        model: res.model,
-      }]);
+      if (agentMode) {
+        const res = await aiAgent(history);
+        setMessages((prev) => [...prev, {
+          role: "assistant",
+          content: res.reply,
+          provider: res.provider,
+          model: res.model,
+          executions: res.executions,
+        }]);
+      } else {
+        const res = await aiChat(history);
+        setMessages((prev) => [...prev, {
+          role: "assistant",
+          content: res.reply,
+          provider: res.provider,
+          model: res.model,
+        }]);
+      }
     } catch (e: unknown) {
       const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
         ?? "AI request failed. Make sure an API key is configured in Settings.";
@@ -67,22 +119,48 @@ export default function AiChatPage() {
     }
   }
 
+  const suggestions = agentMode ? AGENT_SUGGESTIONS : SUGGESTIONS;
+
   return (
     <div className="flex flex-col h-full p-4 md:p-6 max-w-3xl mx-auto w-full">
       <div className="flex items-center justify-between mb-4 shrink-0">
         <div>
           <h1 className="text-xl font-bold">AI Server Assistant</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Ask anything about your server. Answers include live metrics context.</p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {agentMode
+              ? "Agent mode: AI can execute shell commands directly on this server."
+              : "Ask anything about your server. Answers include live metrics context."}
+          </p>
         </div>
-        {messages.length > 0 && (
+        <div className="flex items-center gap-2">
+          {messages.length > 0 && (
+            <button onClick={() => setMessages([])} className="btn-ghost text-xs">
+              Clear
+            </button>
+          )}
           <button
-            onClick={() => setMessages([])}
-            className="btn-ghost text-xs"
+            onClick={() => { setAgentMode((v) => !v); setMessages([]); }}
+            className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+              agentMode
+                ? "bg-amber-500/20 border-amber-500/50 text-amber-300 hover:bg-amber-500/30"
+                : "bg-slate-700/40 border-slate-600 text-slate-400 hover:bg-slate-700/70 hover:text-slate-200"
+            }`}
           >
-            Clear chat
+            ⚡ Agent {agentMode ? "ON" : "OFF"}
           </button>
-        )}
+        </div>
       </div>
+
+      {/* Agent mode warning */}
+      {agentMode && (
+        <div className="shrink-0 mb-3 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+          <span className="shrink-0 mt-0.5">⚠</span>
+          <span>
+            Agent mode is active. The AI will execute shell commands on the server as root to fulfill your requests.
+            Only use this with trusted inputs.
+          </span>
+        </div>
+      )}
 
       {/* Message list */}
       <div className="flex-1 min-h-0 overflow-y-auto space-y-4 mb-4">
@@ -90,7 +168,7 @@ export default function AiChatPage() {
           <div className="space-y-3">
             <p className="text-sm text-slate-400 text-center mt-8">Suggestions:</p>
             <div className="flex flex-wrap gap-2 justify-center">
-              {SUGGESTIONS.map((s) => (
+              {suggestions.map((s) => (
                 <button
                   key={s}
                   onClick={() => send(s)}
@@ -112,10 +190,20 @@ export default function AiChatPage() {
                 ? "bg-red-600/20 text-red-300 border border-red-500/30 rounded-bl-sm"
                 : "bg-slate-700/60 text-slate-200 rounded-bl-sm"
             }`}>
-              {m.role === "assistant"
-                ? <Markdown>{m.content}</Markdown>
-                : <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.content}</p>
-              }
+              {m.role === "assistant" ? (
+                <>
+                  {m.executions && m.executions.length > 0 && (
+                    <div className="mb-3 space-y-1">
+                      {m.executions.map((ex, j) => (
+                        <ExecutionBlock key={j} exec={ex} />
+                      ))}
+                    </div>
+                  )}
+                  <Markdown>{m.content}</Markdown>
+                </>
+              ) : (
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.content}</p>
+              )}
               {m.role === "assistant" && m.model && (
                 <p className="text-[10px] text-slate-500 mt-2">{m.provider} / {m.model}</p>
               )}
@@ -149,7 +237,11 @@ export default function AiChatPage() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={loading}
-          placeholder="Ask about your server… (Enter to send, Shift+Enter for newline)"
+          placeholder={
+            agentMode
+              ? "Tell the agent what to do… (e.g. Restart nginx, Show top processes)"
+              : "Ask about your server… (Enter to send, Shift+Enter for newline)"
+          }
           rows={2}
           className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-none disabled:opacity-50"
         />

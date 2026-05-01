@@ -39,6 +39,24 @@ class CronHelpResponse(BaseModel):
     model: str
 
 
+class AgentExecutionResult(BaseModel):
+    command: str
+    stdout: str
+    stderr: str
+    exit_code: int
+
+
+class AgentRequest(BaseModel):
+    messages: list[ChatMessage]
+
+
+class AgentResponse(BaseModel):
+    reply: str
+    executions: list[AgentExecutionResult]
+    provider: str
+    model: str
+
+
 PROVIDER_MODELS: dict[str, list[str]] = {
     "anthropic": [
         "claude-opus-4-7",
