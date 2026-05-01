@@ -16,7 +16,7 @@ import type { UserResponse, UserRole } from "../types/auth";
 function PasswordField({
   value,
   onChange,
-  label = "Password",
+  label = "Passwort",
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -110,7 +110,7 @@ function UserForm({
       onSave();
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      setError(msg ?? "Failed to save");
+      setError(msg ?? "Error saving");
     } finally {
       setSaving(false);
     }
@@ -125,7 +125,7 @@ function UserForm({
           className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
       </div>
       <div>
-        <label className="block text-xs text-slate-400 mb-1">Email</label>
+        <label className="block text-xs text-slate-400 mb-1">E-Mail</label>
         <input type="email" value={form.email} onChange={(e) => set("email")(e.target.value)}
           required
           className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
@@ -165,7 +165,7 @@ function PasswordResetModal({ user, onSave, onClose }: { user: UserResponse; onS
       await resetPassword(user.id, password);
       onSave();
     } catch {
-      setError("Failed to reset password");
+      setError("Error resetting password");
     } finally {
       setSaving(false);
     }
@@ -174,7 +174,7 @@ function PasswordResetModal({ user, onSave, onClose }: { user: UserResponse; onS
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <p className="text-sm text-slate-400">Set a new password for <span className="text-slate-200">{user.name}</span>.</p>
-      <PasswordField value={password} onChange={setPassword} label="New password" />
+      <PasswordField value={password} onChange={setPassword} label="New Password" />
       {error && <p className="text-xs text-red-400">{error}</p>}
       <div className="flex gap-2 justify-end">
         <button type="button" onClick={onClose} className="btn-ghost">Cancel</button>
@@ -213,15 +213,15 @@ export default function UsersPage() {
   };
 
   if (!currentUser?.is_admin) {
-    return <div className="p-6 text-slate-400">Access denied.</div>;
+    return <div className="p-6 text-slate-400">Kein Zugriff.</div>;
   }
 
   return (
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">User Management</h1>
+        <h1 className="text-xl font-bold">Users</h1>
         <button onClick={() => setModal({ type: "create" })} className="btn-primary">
-          + Create User
+          + Add user
         </button>
       </div>
 
@@ -263,7 +263,7 @@ export default function UsersPage() {
       )}
 
       {modal?.type === "create" && (
-        <Modal title="Create User" onClose={() => setModal(null)}>
+        <Modal title="Add User" onClose={() => setModal(null)}>
           <UserForm onSave={closeAndReload} onClose={() => setModal(null)} />
         </Modal>
       )}

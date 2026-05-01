@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { copyEntry, createDir, deleteEntry, listFiles, readFile, uploadFiles, writeFile } from "../api/files";
+import { chmodEntry, copyEntry, createDir, deleteEntry, downloadUrl, listFiles, readFile, uploadFiles, writeFile } from "../api/files";
 import type { FileContentResponse, FileEntry, FileListResponse } from "../types/files";
 
 function formatSize(bytes: number): string {
@@ -14,7 +14,7 @@ function formatDate(ts: number): string {
 }
 
 type ViewMode = "view" | "edit";
-type ModalMode = "none" | "new-file" | "new-dir" | "copy" | "delete";
+type ModalMode = "none" | "new-file" | "new-dir" | "copy" | "delete" | "chmod";
 
 export default function FilesPage() {
   const [listing, setListing] = useState<FileListResponse | null>(null);
@@ -167,6 +167,10 @@ export default function FilesPage() {
       } else if (modalMode === "delete" && modalTarget) {
         await deleteEntry(modalTarget.path);
         if (fileContent?.path === modalTarget.path) setFileContent(null);
+        closeModal();
+        navigate(currentPath);
+      } else if (modalMode === "chmod" && modalTarget) {
+        await chmodEntry(modalTarget.path, modalInput);
         closeModal();
         navigate(currentPath);
       }
@@ -461,8 +465,10 @@ export default function FilesPage() {
             <thead>
               <tr className="text-left text-xs text-slate-500 border-b border-slate-700">
                 <th className="pb-2 pr-4">Name</th>
+                <th className="pb-2 pr-4 font-mono hidden md:table-cell">Permissions</th>
+                <th className="pb-2 pr-4 hidden md:table-cell">Owner</th>
                 <th className="pb-2 pr-4 text-right">Size</th>
-                <th className="pb-2 pr-4 text-right">Modified</th>
+                <th className="pb-2 pr-4 text-right hidden sm:table-cell">Modified</th>
                 <th className="pb-2 text-right">Actions</th>
               </tr>
             </thead>
@@ -487,15 +493,36 @@ export default function FilesPage() {
                       {entry.name}
                     </span>
                   </td>
+                  <td className="py-1.5 pr-4 font-mono text-xs text-slate-500 hidden md:table-cell">
+                    {entry.permissions || "—"}
+                  </td>
+                  <td className="py-1.5 pr-4 text-xs text-slate-500 hidden md:table-cell">
+                    {entry.owner || "—"}
+                  </td>
                   <td className="py-1.5 pr-4 text-right text-slate-500 text-xs">
                     {entry.is_dir ? "—" : formatSize(entry.size)}
                   </td>
-                  <td className="py-1.5 pr-4 text-right text-slate-500 text-xs">{formatDate(entry.modified)}</td>
+                  <td className="py-1.5 pr-4 text-right text-slate-500 text-xs hidden sm:table-cell">{formatDate(entry.modified)}</td>
                   <td
                     className="py-1.5 text-right"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <div className="flex justify-end gap-1">
+                    <div className="flex justify-end gap-1 flex-wrap">
+                      <a
+                        href={downloadUrl(entry.path)}
+                        download
+                        title="Download"
+                        className="px-2 py-0.5 text-xs text-sky-400 bg-sky-900/20 rounded hover:bg-sky-900/40 transition-colors"
+                      >
+                        ↓
+                      </a>
+                      <button
+                        onClick={() => openModal("chmod", entry)}
+                        title="Change permissions"
+                        className="px-2 py-0.5 text-xs text-yellow-400 bg-yellow-900/20 rounded hover:bg-yellow-900/40 transition-colors"
+                      >
+                        chmod
+                      </button>
                       <button
                         onClick={() => openModal("copy", entry)}
                         title="Copy"
@@ -541,6 +568,7 @@ export default function FilesPage() {
               {modalMode === "new-dir" && "Create New Folder"}
               {modalMode === "copy" && `Copy: ${modalTarget?.name}`}
               {modalMode === "delete" && `Delete ${modalTarget?.is_dir ? "Folder" : "File"}`}
+              {modalMode === "chmod" && `Permissions: ${modalTarget?.name}`}
             </h2>
 
             {modalMode === "delete" ? (
@@ -561,6 +589,7 @@ export default function FilesPage() {
                 placeholder={
                   modalMode === "new-file" ? "Filename (e.g. config.txt)"
                   : modalMode === "new-dir" ? "Folder name"
+                  : modalMode === "chmod" ? `Octal mode (current: ${modalTarget?.permissions?.slice(1) ?? ""})`
                   : "Destination path (absolute)"
                 }
                 className="w-full bg-slate-900 text-slate-200 text-sm font-mono rounded px-3 py-2 border border-slate-600 focus:outline-none focus:border-indigo-500 mb-3"

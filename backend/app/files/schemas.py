@@ -7,6 +7,13 @@ class FileEntry(BaseModel):
     is_dir: bool
     size: int
     modified: float
+    permissions: str = ""   # e.g. "-rwxr-xr-x"
+    owner: str = ""
+
+
+class ChmodRequest(BaseModel):
+    path: str
+    mode: str   # octal string, e.g. "755"
 
 
 class FileListResponse(BaseModel):

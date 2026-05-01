@@ -19,6 +19,7 @@ export interface ContainerInfo {
   volumes: string[];
   networks: string[];
   restart_policy: string | null;
+  env: string[];
 }
 
 export interface ContainerStats {

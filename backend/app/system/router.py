@@ -1,3 +1,5 @@
+from pydantic import BaseModel
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -6,7 +8,10 @@ from app.dependencies import get_current_user, require_admin
 from app.models import User
 from app.system.schemas import (
     HealthReport,
+    KillProcessResponse,
     MetricHistoryPoint,
+    PortInfo,
+    PowerActionResponse,
     ProcessInfo,
     ServiceActionRequest,
     ServiceActionResponse,
@@ -20,12 +25,15 @@ from app.system.service import (
     get_all_metrics,
     get_health,
     get_metrics_history,
+    get_open_ports,
     get_service_detail,
     get_service_logs,
     get_services,
     get_system_info,
     get_top_processes,
+    kill_process,
     service_action,
+    system_power_action,
 )
 
 router = APIRouter()
@@ -94,3 +102,22 @@ async def action_service(
     db: AsyncSession = Depends(get_db),
 ):
     return await service_action(key, body.action, db)
+
+
+@router.get("/ports", response_model=list[PortInfo])
+async def open_ports(_: User = Depends(get_current_user)):
+    return get_open_ports()
+
+
+@router.delete("/processes/{pid}", response_model=KillProcessResponse)
+async def kill_proc(pid: int, _: User = Depends(require_admin)):
+    return kill_process(pid)
+
+
+class PowerRequest(BaseModel):
+    action: str
+
+
+@router.post("/power", response_model=PowerActionResponse)
+async def power(body: PowerRequest, _: User = Depends(require_admin)):
+    return system_power_action(body.action)

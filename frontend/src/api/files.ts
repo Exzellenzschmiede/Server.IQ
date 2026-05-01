@@ -31,6 +31,16 @@ export async function copyEntry(src: string, dst: string): Promise<FileOpRespons
   return data;
 }
 
+export async function chmodEntry(path: string, mode: string): Promise<FileOpResponse> {
+  const { data } = await client.post<FileOpResponse>("/files/chmod", { path, mode });
+  return data;
+}
+
+export function downloadUrl(path: string): string {
+  const token = localStorage.getItem("access_token") ?? "";
+  return `/api/v1/files/download?path=${encodeURIComponent(path)}&token=${token}`;
+}
+
 export async function uploadFiles(
   dest: string,
   items: { file: File; relativePath: string }[],

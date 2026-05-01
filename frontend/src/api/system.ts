@@ -58,3 +58,18 @@ export async function serviceAction(
   const { data } = await client.post<ServiceActionResponse>(`/system/services/${key}/action`, { action });
   return data;
 }
+
+export async function getOpenPorts(): Promise<import("../types/system").PortInfo[]> {
+  const { data } = await client.get("/system/ports");
+  return data;
+}
+
+export async function killProcess(pid: number): Promise<{ success: boolean; pid: number; message: string }> {
+  const { data } = await client.delete(`/system/processes/${pid}`);
+  return data;
+}
+
+export async function systemPower(action: "reboot" | "shutdown"): Promise<{ success: boolean; action: string; message: string }> {
+  const { data } = await client.post("/system/power", { action });
+  return data;
+}

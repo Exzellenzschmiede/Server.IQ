@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  getAlertHistory,
   getNotificationConfig,
   testNotification,
   updateNotificationConfig,
+  type AlertHistoryEntry,
 } from "../api/notifications";
 import type { NotificationConfig } from "../types/notifications";
 
@@ -77,6 +79,7 @@ type SaveStatus = "idle" | "pending" | "saving" | "saved" | "error";
 export default function NotificationsPage() {
   const [cfg, setCfg] = useState<NotificationConfig | null>(null);
   const [loading, setLoading] = useState(true);
+  const [history, setHistory] = useState<AlertHistoryEntry[]>([]);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [testing, setTesting] = useState<"telegram" | "email" | null>(null);
 
@@ -90,6 +93,7 @@ export default function NotificationsPage() {
     getNotificationConfig()
       .then(setCfg)
       .finally(() => setLoading(false));
+    getAlertHistory(50).then(setHistory).catch(() => {});
   }, []);
 
   function flash(set: (m: Msg) => void, text: string, ok: boolean) {
@@ -282,6 +286,41 @@ export default function NotificationsPage() {
           <InlineMsg msg={emailMsg} />
         </div>
       </div>
+
+      {/* Alert history */}
+      {history.length > 0 && (
+        <div className="card space-y-3">
+          <h2 className="text-sm font-semibold text-slate-300">Alert History</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-slate-500 text-left">
+                  <th className="pb-2 pr-4 font-medium">Time</th>
+                  <th className="pb-2 pr-4 font-medium">Channel</th>
+                  <th className="pb-2 pr-4 font-medium">Service</th>
+                  <th className="pb-2 pr-4 font-medium">Event</th>
+                  <th className="pb-2 font-medium">Message</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700/50">
+                {history.map((h) => (
+                  <tr key={h.id} className="text-slate-400">
+                    <td className="py-1.5 pr-4 whitespace-nowrap text-slate-500">
+                      {new Date(h.recorded_at).toLocaleString()}
+                    </td>
+                    <td className="py-1.5 pr-4 capitalize">{h.channel}</td>
+                    <td className="py-1.5 pr-4 font-mono">{h.service_key}</td>
+                    <td className={`py-1.5 pr-4 font-medium ${h.event === "down" ? "text-red-400" : "text-emerald-400"}`}>
+                      {h.event}
+                    </td>
+                    <td className="py-1.5 text-slate-500 truncate max-w-xs">{h.message}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

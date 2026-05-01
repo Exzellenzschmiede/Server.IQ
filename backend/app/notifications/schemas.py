@@ -35,3 +35,14 @@ class NotificationConfigUpdate(BaseModel):
 
 class TestNotificationRequest(BaseModel):
     channel: str  # "telegram" or "email"
+
+
+class AlertHistoryEntry(BaseModel):
+    id: int
+    recorded_at: str
+    channel: str
+    service_key: str
+    event: str
+    message: str
+
+    model_config = {"from_attributes": True}

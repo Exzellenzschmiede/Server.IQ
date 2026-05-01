@@ -6,6 +6,7 @@ import Spinner from "../components/ui/Spinner";
 import type { ServiceDetail, ServiceLogs, ServiceStatus } from "../types/system";
 
 type ActionKey = "start" | "stop" | "restart";
+type Filter = "all" | "active" | "inactive";
 
 function formatBytes(b: number): string {
   if (b < 1024) return `${b} B`;
@@ -90,10 +91,10 @@ function ServiceRow({ service, isAdmin, onRefresh }: { service: ServiceStatus; i
     setFeedback(null);
     try {
       const res = await serviceAction(service.name, action);
-      setFeedback({ ok: res.success, msg: res.success ? `${action} successful` : res.message });
+      setFeedback({ ok: res.success, msg: res.success ? `${action} succeeded` : res.message });
       setTimeout(() => { onRefresh(); setDetail(null); }, 1200);
     } catch {
-      setFeedback({ ok: false, msg: "Error executing action" });
+      setFeedback({ ok: false, msg: "Error" });
     } finally {
       setPending(null);
       setTimeout(() => setFeedback(null), 4000);
@@ -193,6 +194,8 @@ export default function ServicesPage() {
   const [services, setServices] = useState<ServiceStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<Filter>("all");
 
   const refresh = useCallback(() => {
     setLoading(true);
@@ -207,6 +210,18 @@ export default function ServicesPage() {
     return () => clearInterval(t);
   }, [refresh]);
 
+  const visible = services.filter((s) => {
+    const matchFilter =
+      filter === "all" ||
+      (filter === "active" && s.status === "active") ||
+      (filter === "inactive" && s.status !== "active");
+    const matchSearch =
+      !search ||
+      s.display_name.toLowerCase().includes(search.toLowerCase()) ||
+      s.name.toLowerCase().includes(search.toLowerCase());
+    return matchFilter && matchSearch;
+  });
+
   return (
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex items-center justify-between">
@@ -219,13 +234,38 @@ export default function ServicesPage() {
         </div>
       </div>
 
+      <div className="flex flex-col sm:flex-row gap-2">
+        <input
+          type="text"
+          placeholder="Search by name…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-indigo-500"
+        />
+        <div className="flex gap-1">
+          {(["all", "active", "inactive"] as Filter[]).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-3 py-1.5 rounded-lg text-sm capitalize transition-colors ${
+                filter === f
+                  ? "bg-indigo-600 text-white"
+                  : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+              }`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="card divide-y divide-slate-700/50">
         {loading && services.length === 0 ? (
           <p className="py-8 text-center text-slate-500 text-sm">Loading…</p>
-        ) : services.length === 0 ? (
+        ) : visible.length === 0 ? (
           <p className="py-8 text-center text-slate-500 text-sm">No services found</p>
         ) : (
-          services.map((s) => (
+          visible.map((s) => (
             <ServiceRow key={s.name} service={s} isAdmin={!!user?.is_admin} onRefresh={refresh} />
           ))
         )}

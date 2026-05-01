@@ -9,11 +9,13 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { getMetricsHistory, getServices, getSystemInfo, getTopProcesses } from "../api/system";
+import { getContainerStats, getContainers } from "../api/docker";
+import { getMetricsHistory, getServices, getSystemInfo, getTopProcesses, killProcess } from "../api/system";
 import GaugeChart from "../components/ui/GaugeChart";
 import MetricCard from "../components/ui/MetricCard";
 import StatusBadge from "../components/ui/StatusBadge";
 import { useMetrics } from "../hooks/useMetrics";
+import type { ContainerInfo, ContainerStats } from "../types/docker";
 import type { MetricHistoryPoint, ProcessInfo } from "../types/system";
 import type { ServicesResponse } from "../types/system";
 import type { SystemInfo } from "../types/system";
@@ -56,6 +58,8 @@ export default function DashboardPage() {
   const [services, setServices] = useState<ServicesResponse | null>(null);
   const [sortBy, setSortBy] = useState<"cpu" | "memory">("cpu");
   const [historyHours, setHistoryHours] = useState(2);
+  const [runningContainers, setRunningContainers] = useState<ContainerInfo[]>([]);
+  const [containerStats, setContainerStats] = useState<Record<string, ContainerStats>>({});
 
   useEffect(() => {
     getSystemInfo().then(setInfo).catch(() => {});
@@ -73,6 +77,28 @@ export default function DashboardPage() {
     const id = setInterval(() => getMetricsHistory(historyHours).then(setHistory).catch(() => {}), 60000);
     return () => clearInterval(id);
   }, [historyHours]);
+
+  useEffect(() => {
+    async function loadContainerStats() {
+      try {
+        const resp = await getContainers();
+        const running = resp.containers.filter((c) => c.status === "running").slice(0, 8);
+        setRunningContainers(running);
+        const statsMap: Record<string, ContainerStats> = {};
+        await Promise.all(
+          running.map(async (c) => {
+            try {
+              statsMap[c.id] = await getContainerStats(c.id);
+            } catch {}
+          })
+        );
+        setContainerStats(statsMap);
+      } catch {}
+    }
+    loadContainerStats();
+    const id = setInterval(loadContainerStats, 10000);
+    return () => clearInterval(id);
+  }, []);
 
   if (error) {
     return <div className="p-6 text-red-400">Failed to load metrics. Is the backend running?</div>;
@@ -280,7 +306,8 @@ export default function DashboardPage() {
                 <th className="pb-2 pr-3">User</th>
                 <th className="pb-2 pr-3 text-right">CPU%</th>
                 <th className="pb-2 pr-3 text-right">RAM%</th>
-                <th className="pb-2 text-right">RSS</th>
+                <th className="pb-2 pr-3 text-right">RSS</th>
+                <th className="pb-2 text-right" />
               </tr>
             </thead>
             <tbody>
@@ -291,18 +318,69 @@ export default function DashboardPage() {
                   <td className="py-1.5 pr-3 text-slate-500 text-xs">{p.username}</td>
                   <td className="py-1.5 pr-3 text-right text-indigo-400">{p.cpu_percent.toFixed(1)}%</td>
                   <td className="py-1.5 pr-3 text-right text-emerald-400">{p.memory_percent.toFixed(1)}%</td>
-                  <td className="py-1.5 text-right text-slate-400">{formatBytes(p.memory_bytes)}</td>
+                  <td className="py-1.5 pr-3 text-right text-slate-400">{formatBytes(p.memory_bytes)}</td>
+                  <td className="py-1.5 text-right">
+                    <button
+                      onClick={async () => {
+                        if (!confirm(`Kill process ${p.name} (PID ${p.pid})?`)) return;
+                        try { await killProcess(p.pid); getTopProcesses(sortBy, 5).then(setProcesses).catch(() => {}); } catch {}
+                      }}
+                      className="text-xs text-red-400 hover:text-red-300"
+                    >
+                      Kill
+                    </button>
+                  </td>
                 </tr>
               ))}
               {processes.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-4 text-center text-slate-500">Loading…</td>
+                  <td colSpan={7} className="py-4 text-center text-slate-500">Loading…</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Container resources */}
+      {runningContainers.length > 0 && (
+        <div className="card">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">
+            Containers ({runningContainers.length} running)
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-slate-500 border-b border-slate-700">
+                  <th className="pb-2 pr-3">Name</th>
+                  <th className="pb-2 pr-3 text-right">CPU%</th>
+                  <th className="pb-2 pr-3 text-right">RAM</th>
+                  <th className="pb-2 text-right">RAM%</th>
+                </tr>
+              </thead>
+              <tbody>
+                {runningContainers.map((c) => {
+                  const s = containerStats[c.id];
+                  return (
+                    <tr key={c.id} className="border-b border-slate-700/50 hover:bg-slate-700/20">
+                      <td className="py-1.5 pr-3 font-medium text-slate-200 max-w-[160px] truncate">{c.name}</td>
+                      <td className="py-1.5 pr-3 text-right text-indigo-400">
+                        {s ? `${s.cpu_percent.toFixed(1)}%` : "—"}
+                      </td>
+                      <td className="py-1.5 pr-3 text-right text-slate-400">
+                        {s ? formatBytes(s.memory_bytes) : "—"}
+                      </td>
+                      <td className="py-1.5 text-right text-emerald-400">
+                        {s ? `${s.memory_percent.toFixed(1)}%` : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* All disks */}
       {data && data.disk.length > 1 && (

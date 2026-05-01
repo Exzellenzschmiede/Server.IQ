@@ -14,7 +14,7 @@ function fmt(bytes: number): string {
   return (bytes / 1024).toFixed(0) + " KB";
 }
 
-function ContainerCard({
+function ContainerRow({
   container,
   onRefresh,
 }: {
@@ -24,6 +24,7 @@ function ContainerCard({
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
   const [stats, setStats] = useState<ContainerStats | null>(null);
+  const [showEnv, setShowEnv] = useState(false);
 
   useEffect(() => {
     if (!expanded || container.status !== "running") {
@@ -35,9 +36,7 @@ function ContainerCard({
       try {
         const s = await getContainerStats(container.id);
         if (active) setStats(s);
-      } catch {
-        /* container might have stopped */
-      }
+      } catch { /* container may have stopped */ }
     };
     fetch();
     const t = setInterval(fetch, 5000);
@@ -47,63 +46,65 @@ function ContainerCard({
   const boundPorts = container.ports.filter((p) => p.host_port);
 
   return (
-    <div className="card">
-      <div
-        className="flex items-start justify-between gap-3 cursor-pointer"
-        onClick={() => setExpanded((v) => !v)}
-      >
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-sm">{container.name}</span>
-            <StatusBadge status={container.status} />
+    <div className="py-3 px-1 space-y-2">
+      {/* Header row */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="text-left flex items-center gap-2 min-w-0"
+        >
+          <span className="text-slate-500 text-xs">{expanded ? "▾" : "▸"}</span>
+          <div className="min-w-0">
+            <p className="font-medium text-sm">{container.name}</p>
+            <p className="text-xs text-slate-500 truncate max-w-xs">{container.image}</p>
           </div>
-          <p className="text-xs text-slate-500 truncate mt-0.5">{container.image}</p>
-          {container.status_text && container.status_text !== container.status && (
-            <p className="text-xs text-slate-600 mt-0.5">{container.status_text}</p>
-          )}
+        </button>
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <StatusBadge status={container.status} />
+          <button
+            onClick={() => navigate(`/containers/${container.id}/logs`)}
+            className="text-xs text-slate-400 hover:text-slate-200 border border-slate-700 rounded px-2 py-0.5 transition-colors"
+          >
+            Logs
+          </button>
+          <ContainerActions
+            container={container}
+            onRefresh={onRefresh}
+            compact
+          />
         </div>
-        <span className="text-slate-500 text-sm flex-shrink-0">{expanded ? "▲" : "▼"}</span>
       </div>
 
+      {/* Expanded details */}
       {expanded && (
-        <div className="mt-3 space-y-3 pt-3 border-t border-slate-700/50">
-          <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-slate-400">
-            <div>
-              <span className="text-slate-500">ID: </span>
-              {container.short_id}
-            </div>
-
+        <div className="ml-4 mt-1 bg-slate-700/30 rounded-lg p-3 space-y-3 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1.5 text-slate-400">
+            <div><span className="text-slate-500">ID: </span>{container.short_id}</div>
+            {container.status_text && container.status_text !== container.status && (
+              <div><span className="text-slate-500">State: </span>{container.status_text}</div>
+            )}
+            {container.started_at && (
+              <div><span className="text-slate-500">Started: </span>{new Date(container.started_at).toLocaleString()}</div>
+            )}
+            {container.restart_policy && (
+              <div><span className="text-slate-500">Restart: </span>{container.restart_policy}</div>
+            )}
             {boundPorts.length > 0 && (
-              <div>
+              <div className="col-span-2 sm:col-span-3">
                 <span className="text-slate-500">Ports: </span>
                 {boundPorts.map((p) => `${p.host_port}→${p.container_port}`).join(", ")}
               </div>
             )}
-
             {container.networks.length > 0 && (
-              <div>
-                <span className="text-slate-500">Network: </span>
+              <div className="col-span-2 sm:col-span-3">
+                <span className="text-slate-500">Networks: </span>
                 {container.networks.join(", ")}
-              </div>
-            )}
-
-            {container.restart_policy && (
-              <div>
-                <span className="text-slate-500">Restart: </span>
-                {container.restart_policy}
-              </div>
-            )}
-
-            {container.started_at && (
-              <div>
-                <span className="text-slate-500">Started: </span>
-                {new Date(container.started_at).toLocaleString()}
               </div>
             )}
           </div>
 
           {container.volumes.length > 0 && (
-            <div className="text-xs text-slate-400 space-y-0.5">
+            <div className="space-y-0.5">
               <p className="text-slate-500 font-medium">Volumes</p>
               {container.volumes.map((v, i) => (
                 <p key={i} className="font-mono text-slate-500 truncate">{v}</p>
@@ -111,8 +112,26 @@ function ContainerCard({
             </div>
           )}
 
+          {container.env && container.env.length > 0 && (
+            <div className="space-y-1">
+              <button
+                onClick={() => setShowEnv((v) => !v)}
+                className="text-slate-500 hover:text-slate-300 font-medium flex items-center gap-1"
+              >
+                {showEnv ? "▾" : "▸"} Env vars ({container.env.length})
+              </button>
+              {showEnv && (
+                <div className="bg-slate-900/60 rounded p-2 space-y-0.5 max-h-40 overflow-auto">
+                  {container.env.map((e, i) => (
+                    <p key={i} className="font-mono text-slate-400 break-all">{e}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {stats && (
-            <div className="flex gap-4 text-xs bg-slate-900/60 rounded-lg px-3 py-2">
+            <div className="flex gap-4 bg-slate-900/60 rounded px-3 py-2">
               <div>
                 <span className="text-slate-500">CPU </span>
                 <span className="text-slate-300 font-medium">{stats.cpu_percent}%</span>
@@ -126,12 +145,6 @@ function ContainerCard({
               </div>
             </div>
           )}
-
-          <ContainerActions
-            container={container}
-            onRefresh={onRefresh}
-            onViewLogs={() => navigate(`/containers/${container.id}/logs`)}
-          />
         </div>
       )}
     </div>
@@ -159,7 +172,7 @@ export default function ContainersPage() {
   return (
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-xl font-bold">Container</h1>
+        <h1 className="text-xl font-bold">Containers</h1>
         <div className="flex items-center gap-2 text-sm text-slate-400">
           {data && (
             <>
@@ -168,7 +181,7 @@ export default function ContainersPage() {
               <span>{data.total} total</span>
             </>
           )}
-          <button onClick={refresh} className="btn-ghost ml-2">
+          <button onClick={refresh} disabled={loading} className="btn-ghost ml-2">
             Refresh
           </button>
         </div>
@@ -199,19 +212,19 @@ export default function ContainersPage() {
         </div>
       </div>
 
-      {loading && !data ? (
-        <p className="text-center text-slate-500 py-10 text-sm">Loading containers…</p>
-      ) : error ? (
-        <p className="text-center text-red-400 py-10 text-sm">{error}</p>
-      ) : containers.length === 0 ? (
-        <p className="text-center text-slate-500 py-10 text-sm">No containers found</p>
-      ) : (
-        <div className="space-y-3">
-          {containers.map((c) => (
-            <ContainerCard key={c.id} container={c} onRefresh={refresh} />
-          ))}
-        </div>
-      )}
+      <div className="card divide-y divide-slate-700/50">
+        {loading && !data ? (
+          <p className="py-8 text-center text-slate-500 text-sm">Loading containers…</p>
+        ) : error ? (
+          <p className="py-8 text-center text-red-400 text-sm">{error}</p>
+        ) : containers.length === 0 ? (
+          <p className="py-8 text-center text-slate-500 text-sm">No containers found</p>
+        ) : (
+          containers.map((c) => (
+            <ContainerRow key={c.id} container={c} onRefresh={refresh} />
+          ))
+        )}
+      </div>
     </div>
   );
 }

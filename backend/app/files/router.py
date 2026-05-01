@@ -6,6 +6,7 @@ from app.dependencies import get_current_user, require_admin
 from app.models import User
 
 from .schemas import (
+    ChmodRequest,
     CreateDirRequest,
     FileCopyRequest,
     FileContentResponse,
@@ -14,7 +15,7 @@ from .schemas import (
     FileWriteRequest,
     UploadResponse,
 )
-from .service import copy_entry, create_dir, delete_entry, list_path, read_file, upload_files, write_file
+from .service import chmod_entry, copy_entry, create_dir, delete_entry, download_as_zip, list_path, read_file, upload_files, write_file
 
 router = APIRouter()
 
@@ -78,3 +79,13 @@ async def upload(
     while len(relative_paths) < len(files):
         relative_paths.append(files[len(relative_paths)].filename or "upload")
     return await upload_files(dest, files, relative_paths)
+
+
+@router.post("/chmod", response_model=FileOpResponse)
+async def chmod(body: ChmodRequest, _: User = Depends(require_admin)):
+    return chmod_entry(body.path, body.mode)
+
+
+@router.get("/download")
+async def download(path: str = Query(...), token: str = Query(None), _: User = Depends(get_current_user)):
+    return download_as_zip(path)

@@ -13,11 +13,12 @@ interface Props {
   container: ContainerInfo;
   onRefresh: () => void;
   onViewLogs?: () => void;
+  compact?: boolean;
 }
 
 type Action = "start" | "stop" | "restart" | "remove" | "reinstall" | null;
 
-export default function ContainerActions({ container, onRefresh, onViewLogs }: Props) {
+export default function ContainerActions({ container, onRefresh, onViewLogs, compact }: Props) {
   const [pending, setPending] = useState<Action>(null);
   const [confirm, setConfirm] = useState<"remove" | "reinstall" | null>(null);
 
@@ -28,7 +29,7 @@ export default function ContainerActions({ container, onRefresh, onViewLogs }: P
       await fn();
       onRefresh();
     } catch {
-      /* swallow — could add toast later */
+      /* swallow */
     } finally {
       setPending(null);
       setConfirm(null);
@@ -36,13 +37,14 @@ export default function ContainerActions({ container, onRefresh, onViewLogs }: P
   };
 
   const isRunning = container.status === "running";
+  const sz = compact ? "py-0.5 px-2.5 text-xs" : "";
 
   return (
     <>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-1">
         {isRunning ? (
           <button
-            className="btn-ghost"
+            className={`btn-ghost ${sz}`}
             disabled={!!pending}
             onClick={() => run("stop", () => stopContainer(container.id))}
           >
@@ -50,7 +52,7 @@ export default function ContainerActions({ container, onRefresh, onViewLogs }: P
           </button>
         ) : (
           <button
-            className="btn-primary"
+            className={`btn-primary ${sz}`}
             disabled={!!pending}
             onClick={() => run("start", () => startContainer(container.id))}
           >
@@ -60,7 +62,7 @@ export default function ContainerActions({ container, onRefresh, onViewLogs }: P
 
         {isRunning && (
           <button
-            className="btn-ghost"
+            className={`btn-ghost ${sz}`}
             disabled={!!pending}
             onClick={() => run("restart", () => restartContainer(container.id))}
           >
@@ -69,13 +71,13 @@ export default function ContainerActions({ container, onRefresh, onViewLogs }: P
         )}
 
         {onViewLogs && (
-          <button className="btn-ghost" onClick={onViewLogs}>
+          <button className={`btn-ghost ${sz}`} onClick={onViewLogs}>
             Logs
           </button>
         )}
 
         <button
-          className="btn-ghost"
+          className={`btn-ghost ${sz}`}
           disabled={!!pending}
           onClick={() => setConfirm("reinstall")}
         >
@@ -83,7 +85,7 @@ export default function ContainerActions({ container, onRefresh, onViewLogs }: P
         </button>
 
         <button
-          className="btn-danger"
+          className={`btn-danger ${sz}`}
           disabled={!!pending}
           onClick={() => setConfirm("remove")}
         >

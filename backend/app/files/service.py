@@ -1,8 +1,12 @@
+import io
 import os
 import shutil
+import stat as _stat
+import zipfile
 from pathlib import Path
 
 from fastapi import HTTPException, status
+from fastapi.responses import StreamingResponse
 
 from .schemas import FileContentResponse, FileEntry, FileListResponse, FileOpResponse, UploadResponse
 
@@ -26,12 +30,18 @@ def list_path(path: str | None) -> FileListResponse:
         for child in children:
             try:
                 stat = child.stat(follow_symlinks=False)
+                try:
+                    owner = __import__("pwd").getpwuid(stat.st_uid).pw_name
+                except (KeyError, AttributeError):
+                    owner = str(stat.st_uid)
                 entries.append(FileEntry(
                     name=child.name,
                     path=str(child),
                     is_dir=child.is_dir(),
                     size=stat.st_size,
                     modified=stat.st_mtime,
+                    permissions=_stat.filemode(stat.st_mode),
+                    owner=owner,
                 ))
             except (PermissionError, OSError):
                 continue
@@ -160,3 +170,44 @@ def write_file(path: str, content: str) -> FileContentResponse:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+
+
+def chmod_entry(path: str, mode: str) -> FileOpResponse:
+    resolved = _resolve(path)
+    if not resolved.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Path not found")
+    try:
+        mode_int = int(mode, 8)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid mode — use octal like '755'")
+    try:
+        os.chmod(resolved, mode_int)
+        return FileOpResponse(path=str(resolved))
+    except PermissionError:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+
+
+def download_as_zip(path: str) -> StreamingResponse:
+    resolved = _resolve(path)
+    if not resolved.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Path not found")
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        if resolved.is_dir():
+            for file in resolved.rglob("*"):
+                if file.is_file():
+                    try:
+                        zf.write(file, file.relative_to(resolved.parent))
+                    except (PermissionError, OSError):
+                        continue
+        else:
+            zf.write(resolved, resolved.name)
+
+    buf.seek(0)
+    zip_name = resolved.name + ".zip"
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{zip_name}"'},
+    )

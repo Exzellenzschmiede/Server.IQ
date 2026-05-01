@@ -3,11 +3,11 @@ import { addCronJob, deleteCronJob, getCronJobs } from "../api/cron";
 import type { CronJob } from "../types/cron";
 
 const PRESETS = [
-  { label: "Daily 2:00 AM",      value: "0 2 * * *" },
-  { label: "Hourly",             value: "0 * * * *" },
-  { label: "Every 15 minutes",   value: "*/15 * * * *" },
-  { label: "Weekly Mon 3:00 AM", value: "0 3 * * 1" },
-  { label: "Monthly 1st 4:00 AM",value: "0 4 1 * *" },
+  { label: "Daily 2:00",       value: "0 2 * * *" },
+  { label: "Hourly",           value: "0 * * * *" },
+  { label: "Every 15 min",     value: "*/15 * * * *" },
+  { label: "Weekly Mon 3:00",  value: "0 3 * * 1" },
+  { label: "Monthly 1st 4:00", value: "0 4 1 * *" },
 ];
 
 export default function CronPage() {
@@ -27,7 +27,7 @@ export default function CronPage() {
       setJobs(r.jobs);
       setError(null);
     } catch {
-      setError("Could not load crontab");
+      setError("Failed to load crontab");
     } finally {
       setLoading(false);
     }
@@ -71,9 +71,8 @@ export default function CronPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-4">
       <h1 className="text-xl font-bold">Cron Jobs</h1>
-      <p className="text-sm text-slate-400">Crontab of the current user (deploy)</p>
 
       {msg && (
         <div className="card bg-indigo-600/10 border border-indigo-500/30 text-indigo-300 text-sm">{msg}</div>
@@ -130,7 +129,7 @@ export default function CronPage() {
 
       {/* Jobs list */}
       <div className="card overflow-x-auto">
-        <h2 className="text-sm font-semibold text-slate-300 mb-3">Current Jobs</h2>
+        <h2 className="text-sm font-semibold text-slate-300 mb-3">Scheduled Jobs</h2>
         {loading ? (
           <p className="text-sm text-slate-500">Loading…</p>
         ) : error ? (

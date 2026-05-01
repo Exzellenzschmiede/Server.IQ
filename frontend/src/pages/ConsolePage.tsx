@@ -61,11 +61,11 @@ export default function ConsolePage() {
     };
 
     ws.onclose = () => {
-      terminal.writeln("\r\n\x1b[33mConnection closed.\x1b[0m");
+      terminal.writeln("\r\n\x1b[33mVerbindung getrennt.\x1b[0m");
     };
 
     ws.onerror = () => {
-      terminal.writeln("\r\n\x1b[31mConnection error.\x1b[0m");
+      terminal.writeln("\r\n\x1b[31mVerbindungsfehler.\x1b[0m");
     };
 
     // Keyboard input → PTY (as binary to avoid confusion with JSON resize messages)
@@ -95,8 +95,8 @@ export default function ConsolePage() {
   return (
     <div className="flex flex-col h-full p-4 gap-3" style={{ height: "calc(100vh - 56px)" }}>
       <div>
-        <h1 className="text-xl font-semibold text-slate-100">Console</h1>
-        <p className="text-xs text-slate-500">PTY shell on VPS host · User: {" "}
+        <h1 className="text-xl font-bold">Console</h1>
+        <p className="text-xs text-slate-500">PTY shell on the VPS host ·{" "}
           <span className="font-mono text-slate-400">{location.hostname}</span>
         </p>
       </div>

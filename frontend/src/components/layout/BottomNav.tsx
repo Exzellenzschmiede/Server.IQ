@@ -4,9 +4,9 @@ import { useAuth } from "../../auth/AuthContext";
 const NAV = [
   { to: "/",           label: "Dashboard", icon: "▣",  mono: false },
   { to: "/services",   label: "Services",  icon: "⚡", mono: false },
-  { to: "/containers", label: "Container", icon: "🐳", mono: false },
-  { to: "/firewall",   label: "Firewall",  icon: "🛡", mono: false },
-  { to: "/console",    label: "Console",   icon: ">_", mono: true  },
+  { to: "/containers", label: "Containers", icon: "🐳", mono: false },
+  { to: "/firewall",   label: "Firewall",   icon: "🛡", mono: false },
+  { to: "/console",    label: "Console",    icon: ">_", mono: true  },
 ];
 
 export default function BottomNav() {
