@@ -212,10 +212,40 @@ def run_cleanup(actions: list[str]) -> CleanupResult:
 
     if "docker_images" in actions and docker_ok:
         try:
-            r = _run(["docker", "image", "prune", "-f", "--all"], timeout=300)
-            freed = _parse_reclaimed(r.stdout)
-            add("docker_images", r.returncode == 0, freed,
-                r.stdout.strip() or r.stderr.strip() or "Done")
+            msgs = []
+
+            # Remove ALL non-running containers first (exited, dead, created, paused)
+            # so their image references don't block deletion.
+            r_ps = _run(["docker", "ps", "-a", "-q",
+                         "--filter", "status=exited",
+                         "--filter", "status=dead",
+                         "--filter", "status=created",
+                         "--filter", "status=paused"])
+            cids = [l.strip() for l in r_ps.stdout.strip().splitlines() if l.strip()]
+            if cids:
+                r_rm = _run(["docker", "rm"] + cids, timeout=120)
+                n = len([l for l in r_rm.stdout.splitlines() if l.strip()])
+                if n:
+                    msgs.append(f"Removed {n} stopped/dead containers")
+
+            # Collect dangling image IDs and remove them directly
+            r_ids = _run(["docker", "images", "-q", "-f", "dangling=true"])
+            image_ids = [l.strip() for l in r_ids.stdout.strip().splitlines() if l.strip()]
+
+            freed = 0
+            if image_ids:
+                r_rmi = _run(["docker", "rmi"] + image_ids, timeout=300)
+                freed = _parse_reclaimed(r_rmi.stdout)
+                n_del = len([l for l in r_rmi.stdout.splitlines() if l.strip().startswith("Deleted:")])
+                msgs.append(f"Deleted {n_del} image layers")
+                stderr = r_rmi.stderr.strip()
+                if stderr:
+                    msgs.append(stderr[:300])
+                add("docker_images", r_rmi.returncode == 0, freed,
+                    " — ".join(msgs) or "Done")
+            else:
+                msgs.append("No dangling images found")
+                add("docker_images", True, 0, " — ".join(msgs))
         except Exception as e:
             add("docker_images", False, 0, str(e))
 
