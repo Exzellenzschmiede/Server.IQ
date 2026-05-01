@@ -73,8 +73,8 @@ def scan() -> CleanupScanResult:
                     pass
         items.append(CleanableItem(
             key="docker_images",
-            label="Docker dangling images",
-            description="Untagged intermediate images left over from builds",
+            label="Unused Docker images",
+            description="Untagged images not used by any container (dangling + unreferenced)",
             size_bytes=size,
             count=len(lines),
         ))
@@ -197,42 +197,46 @@ def run_cleanup(actions: list[str]) -> CleanupResult:
     def add(key: str, ok: bool, freed: int, msg: str):
         results.append(CleanupActionResult(key=key, ok=ok, freed_bytes=freed, message=msg))
 
-    if "docker_images" in actions and docker_ok:
-        try:
-            r = _run(["docker", "image", "prune", "-f"], timeout=300)
-            freed = _parse_reclaimed(r.stdout)
-            out = r.stdout.strip() or r.stderr.strip() or "Done"
-            add("docker_images", r.returncode == 0, freed, out)
-        except Exception as e:
-            add("docker_images", False, 0, str(e))
+    # Order matters: containers must be pruned before images (stopped containers
+    # hold references to images, preventing image prune from removing them).
+    # Volumes must come after containers for the same reason.
 
     if "docker_containers" in actions and docker_ok:
         try:
             r = _run(["docker", "container", "prune", "-f"], timeout=300)
             freed = _parse_reclaimed(r.stdout)
-            out = r.stdout.strip() or r.stderr.strip() or "Done"
-            add("docker_containers", r.returncode == 0, freed, out)
+            add("docker_containers", r.returncode == 0, freed,
+                r.stdout.strip() or r.stderr.strip() or "Done")
         except Exception as e:
             add("docker_containers", False, 0, str(e))
+
+    if "docker_images" in actions and docker_ok:
+        try:
+            r = _run(["docker", "image", "prune", "-f", "--all"], timeout=300)
+            freed = _parse_reclaimed(r.stdout)
+            add("docker_images", r.returncode == 0, freed,
+                r.stdout.strip() or r.stderr.strip() or "Done")
+        except Exception as e:
+            add("docker_images", False, 0, str(e))
 
     if "docker_volumes" in actions and docker_ok:
         try:
             r = _run(["docker", "volume", "prune", "-f"], timeout=300)
             freed = _parse_reclaimed(r.stdout)
-            out = r.stdout.strip() or r.stderr.strip() or "Done"
-            add("docker_volumes", r.returncode == 0, freed, out)
+            add("docker_volumes", r.returncode == 0, freed,
+                r.stdout.strip() or r.stderr.strip() or "Done")
         except Exception as e:
             add("docker_volumes", False, 0, str(e))
 
     if "docker_build_cache" in actions and docker_ok:
         try:
-            r = _run(["docker", "builder", "prune", "-f", "--keep-storage", "0"], timeout=600)
+            r = _run(["docker", "builder", "prune", "-f", "--all"], timeout=600)
             freed = _parse_reclaimed(r.stdout)
-            out = r.stdout.strip() or r.stderr.strip() or "Done"
-            add("docker_build_cache", r.returncode == 0, freed, out)
+            add("docker_build_cache", r.returncode == 0, freed,
+                r.stdout.strip() or r.stderr.strip() or "Done")
         except subprocess.TimeoutExpired:
             add("docker_build_cache", False, 0,
-                "Timed out (build cache prune can be slow). Try again or run manually: docker builder prune -f")
+                "Timed out — build cache prune can be very slow. Run manually: docker builder prune -f --all")
         except Exception as e:
             add("docker_build_cache", False, 0, str(e))
 
