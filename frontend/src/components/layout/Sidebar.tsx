@@ -123,13 +123,13 @@ export default function Sidebar() {
   const groups = user?.is_admin ? [...GROUPS, ADMIN_GROUP] : GROUPS;
 
   return (
-    <aside className="hidden md:flex flex-col w-56 min-h-screen bg-slate-800 border-r border-slate-700/50 px-3 py-4 overflow-y-auto">
+    <aside className="hidden md:flex flex-col w-56 h-screen bg-slate-800 border-r border-slate-700/50 px-3 py-4">
       <div className="flex items-center gap-2.5 px-2 mb-4">
         <Logo size={28} />
         <span className="text-indigo-400 text-xl font-bold">Server.IQ</span>
       </div>
 
-      <nav className="flex flex-col flex-1">
+      <nav className="flex flex-col flex-1 overflow-y-auto min-h-0">
         {groups.map((group) => (
           <NavGroup
             key={group.key}
@@ -140,7 +140,7 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      <div className="border-t border-slate-700/50 pt-3 mt-3">
+      <div className="shrink-0 border-t border-slate-700/50 pt-3 mt-3">
         <p className="px-3 text-xs text-slate-500 truncate">{user?.name}</p>
         <p className="px-3 text-xs text-slate-600 truncate">{user?.email}</p>
         <button

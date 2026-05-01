@@ -5,7 +5,7 @@ import Sidebar from "./Sidebar";
 
 export default function AppShell() {
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="md:hidden flex items-center gap-2.5 px-4 py-3 bg-slate-800 border-b border-slate-700/50">
