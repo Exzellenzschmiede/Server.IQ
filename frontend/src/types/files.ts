@@ -16,3 +16,7 @@ export interface FileContentResponse {
   content: string;
   truncated: boolean;
 }
+
+export interface FileOpResponse {
+  path: string;
+}

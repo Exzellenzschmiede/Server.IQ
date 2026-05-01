@@ -127,6 +127,14 @@ Full filesystem browser — no path restrictions, including hidden files (shown 
   - Binary files and files > 2 MB are read-only
 - Files are written directly to disk; be careful editing system files
 
+**Creating files and directories** *(admin only)*:
+- **+ Neue Datei** — opens a dialog to enter a filename; creates an empty file in the current directory
+- **+ Neuer Ordner** — opens a dialog to enter a folder name; creates the directory
+
+**Per-entry actions** *(admin only)*:
+- **Kopieren** — copies the file or directory to an absolute destination path you specify
+- **Löschen** — deletes the file or directory (recursive for directories); requires confirmation
+
 ---
 
 ## Console

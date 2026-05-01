@@ -1,9 +1,10 @@
 import os
+import shutil
 from pathlib import Path
 
 from fastapi import HTTPException, status
 
-from .schemas import FileContentResponse, FileEntry, FileListResponse
+from .schemas import FileContentResponse, FileEntry, FileListResponse, FileOpResponse
 
 MAX_READ_BYTES = 2 * 1024 * 1024  # 2 MB
 
@@ -62,6 +63,54 @@ def read_file(path: str) -> FileContentResponse:
         return FileContentResponse(path=str(resolved), content=content, truncated=truncated)
     except HTTPException:
         raise
+    except PermissionError:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+
+
+def create_dir(path: str) -> FileOpResponse:
+    resolved = _resolve(path)
+    if resolved.exists():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Path already exists")
+    try:
+        resolved.mkdir(parents=True, exist_ok=False)
+        return FileOpResponse(path=str(resolved))
+    except PermissionError:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+
+
+def delete_entry(path: str) -> None:
+    resolved = _resolve(path)
+    if not resolved.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Path not found")
+    try:
+        if resolved.is_dir():
+            shutil.rmtree(resolved)
+        else:
+            resolved.unlink()
+    except PermissionError:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+
+
+def copy_entry(src: str, dst: str) -> FileOpResponse:
+    src_resolved = _resolve(src)
+    dst_resolved = _resolve(dst)
+    if not src_resolved.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source not found")
+    if dst_resolved.exists():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Destination already exists")
+    try:
+        if src_resolved.is_dir():
+            shutil.copytree(src_resolved, dst_resolved)
+        else:
+            dst_resolved.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src_resolved, dst_resolved)
+        return FileOpResponse(path=str(dst_resolved))
     except PermissionError:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
     except Exception as exc:

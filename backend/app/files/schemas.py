@@ -23,3 +23,16 @@ class FileContentResponse(BaseModel):
 class FileWriteRequest(BaseModel):
     path: str
     content: str
+
+
+class CreateDirRequest(BaseModel):
+    path: str
+
+
+class FileCopyRequest(BaseModel):
+    src: str
+    dst: str
+
+
+class FileOpResponse(BaseModel):
+    path: str

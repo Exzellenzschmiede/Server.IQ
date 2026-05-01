@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { listFiles, readFile, writeFile } from "../api/files";
+import { copyEntry, createDir, deleteEntry, listFiles, readFile, writeFile } from "../api/files";
 import type { FileContentResponse, FileEntry, FileListResponse } from "../types/files";
 
 function formatSize(bytes: number): string {
@@ -14,6 +14,7 @@ function formatDate(ts: number): string {
 }
 
 type ViewMode = "view" | "edit";
+type ModalMode = "none" | "new-file" | "new-dir" | "copy" | "delete";
 
 export default function FilesPage() {
   const [listing, setListing] = useState<FileListResponse | null>(null);
@@ -29,6 +30,13 @@ export default function FilesPage() {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const [modalMode, setModalMode] = useState<ModalMode>("none");
+  const [modalInput, setModalInput] = useState("");
+  const [modalTarget, setModalTarget] = useState<FileEntry | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const modalInputRef = useRef<HTMLInputElement>(null);
 
   async function navigate(path: string | undefined) {
     setLoading(true);
@@ -63,8 +71,7 @@ export default function FilesPage() {
   function goToSegment(index: number) {
     const parts = (currentPath ?? "/").split("/").filter(Boolean);
     const target = "/" + parts.slice(0, index + 1).join("/");
-    const stackSnapshot = pathStack.slice(0, index);
-    setPathStack(stackSnapshot);
+    setPathStack(pathStack.slice(0, index));
     navigate(target || undefined);
   }
 
@@ -110,6 +117,54 @@ export default function FilesPage() {
     }
   }
 
+  function openModal(mode: ModalMode, target?: FileEntry) {
+    setModalMode(mode);
+    setModalTarget(target ?? null);
+    setModalError(null);
+    setModalInput(mode === "copy" && target ? target.path : "");
+    setTimeout(() => modalInputRef.current?.focus(), 50);
+  }
+
+  function closeModal() {
+    setModalMode("none");
+    setModalInput("");
+    setModalTarget(null);
+    setModalError(null);
+  }
+
+  async function confirmModal() {
+    setActionLoading(true);
+    setModalError(null);
+    try {
+      if (modalMode === "new-file") {
+        const base = currentPath ?? "";
+        const path = (base + "/" + modalInput.replace(/^\/+/, "")).replace(/\/+/g, "/");
+        await writeFile(path, "");
+        closeModal();
+        navigate(currentPath);
+      } else if (modalMode === "new-dir") {
+        const base = currentPath ?? "";
+        const path = (base + "/" + modalInput.replace(/^\/+/, "")).replace(/\/+/g, "/");
+        await createDir(path);
+        closeModal();
+        navigate(currentPath);
+      } else if (modalMode === "copy" && modalTarget) {
+        await copyEntry(modalTarget.path, modalInput);
+        closeModal();
+        navigate(currentPath);
+      } else if (modalMode === "delete" && modalTarget) {
+        await deleteEntry(modalTarget.path);
+        if (fileContent?.path === modalTarget.path) setFileContent(null);
+        closeModal();
+        navigate(currentPath);
+      }
+    } catch (e: unknown) {
+      setModalError(errDetail(e) ?? "Fehler");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   const pathParts = (currentPath ?? "/").split("/").filter(Boolean);
 
   return (
@@ -138,10 +193,7 @@ export default function FilesPage() {
         {pathParts.map((part, i) => (
           <span key={i} className="flex items-center gap-1">
             <span className="text-slate-600">/</span>
-            <button
-              onClick={() => goToSegment(i)}
-              className="hover:text-slate-200 transition-colors"
-            >
+            <button onClick={() => goToSegment(i)} className="hover:text-slate-200 transition-colors">
               {part}
             </button>
           </span>
@@ -199,11 +251,9 @@ export default function FilesPage() {
                   )}
                 </div>
               </div>
-
               {fileContent.truncated && (
                 <p className="text-xs text-yellow-400">⚠ Datei zu groß — erste 2 MB angezeigt (kein Speichern möglich)</p>
               )}
-
               {viewMode === "view" ? (
                 <pre className="text-xs font-mono text-slate-300 overflow-auto max-h-[60vh] bg-slate-900 rounded p-3 whitespace-pre-wrap break-all">
                   {fileContent.content || <span className="text-slate-600">(leer)</span>}
@@ -226,6 +276,22 @@ export default function FilesPage() {
 
       {/* Directory listing */}
       <div className="card overflow-x-auto">
+        {/* Toolbar */}
+        <div className="flex gap-2 mb-3">
+          <button
+            onClick={() => openModal("new-file")}
+            className="px-3 py-1 text-xs bg-indigo-600/20 text-indigo-300 rounded hover:bg-indigo-600/30 transition-colors"
+          >
+            + Neue Datei
+          </button>
+          <button
+            onClick={() => openModal("new-dir")}
+            className="px-3 py-1 text-xs bg-sky-600/20 text-sky-300 rounded hover:bg-sky-600/30 transition-colors"
+          >
+            + Neuer Ordner
+          </button>
+        </div>
+
         {loading ? (
           <p className="text-sm text-slate-500 py-4 text-center">Lade…</p>
         ) : listing && listing.entries.length === 0 ? (
@@ -236,7 +302,8 @@ export default function FilesPage() {
               <tr className="text-left text-xs text-slate-500 border-b border-slate-700">
                 <th className="pb-2 pr-4">Name</th>
                 <th className="pb-2 pr-4 text-right">Größe</th>
-                <th className="pb-2 text-right">Geändert</th>
+                <th className="pb-2 pr-4 text-right">Geändert</th>
+                <th className="pb-2 text-right">Aktionen</th>
               </tr>
             </thead>
             <tbody>
@@ -263,13 +330,100 @@ export default function FilesPage() {
                   <td className="py-1.5 pr-4 text-right text-slate-500 text-xs">
                     {entry.is_dir ? "—" : formatSize(entry.size)}
                   </td>
-                  <td className="py-1.5 text-right text-slate-500 text-xs">{formatDate(entry.modified)}</td>
+                  <td className="py-1.5 pr-4 text-right text-slate-500 text-xs">{formatDate(entry.modified)}</td>
+                  <td
+                    className="py-1.5 text-right"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex justify-end gap-1">
+                      <button
+                        onClick={() => openModal("copy", entry)}
+                        title="Kopieren"
+                        className="px-2 py-0.5 text-xs text-slate-400 bg-slate-700/50 rounded hover:bg-slate-600 transition-colors"
+                      >
+                        Kopieren
+                      </button>
+                      <button
+                        onClick={() => openModal("delete", entry)}
+                        title="Löschen"
+                        className="px-2 py-0.5 text-xs text-red-400 bg-red-900/20 rounded hover:bg-red-900/40 transition-colors"
+                      >
+                        Löschen
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </div>
+
+      {/* Modal */}
+      {modalMode !== "none" && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+          onClick={closeModal}
+        >
+          <div
+            className="bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-md shadow-xl mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-base font-semibold mb-4">
+              {modalMode === "new-file" && "Neue Datei anlegen"}
+              {modalMode === "new-dir" && "Neuen Ordner anlegen"}
+              {modalMode === "copy" && `Kopieren: ${modalTarget?.name}`}
+              {modalMode === "delete" && `${modalTarget?.is_dir ? "Ordner" : "Datei"} löschen`}
+            </h2>
+
+            {modalMode === "delete" ? (
+              <div className="mb-4 space-y-1">
+                <p className="text-sm text-slate-400">
+                  <span className="font-mono text-slate-200">{modalTarget?.path}</span>
+                </p>
+                {modalTarget?.is_dir && (
+                  <p className="text-xs text-yellow-400">⚠ Alle enthaltenen Dateien und Unterordner werden ebenfalls gelöscht.</p>
+                )}
+              </div>
+            ) : (
+              <input
+                ref={modalInputRef}
+                value={modalInput}
+                onChange={(e) => setModalInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && modalInput.trim()) confirmModal(); }}
+                placeholder={
+                  modalMode === "new-file" ? "Dateiname (z. B. config.txt)"
+                  : modalMode === "new-dir" ? "Ordnername"
+                  : "Zielpfad (absolut)"
+                }
+                className="w-full bg-slate-900 text-slate-200 text-sm font-mono rounded px-3 py-2 border border-slate-600 focus:outline-none focus:border-indigo-500 mb-3"
+              />
+            )}
+
+            {modalError && <p className="text-xs text-red-400 mb-3">{modalError}</p>}
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={closeModal}
+                className="px-4 py-1.5 text-sm text-slate-400 bg-slate-700 rounded hover:bg-slate-600 transition-colors"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={confirmModal}
+                disabled={actionLoading || (modalMode !== "delete" && !modalInput.trim())}
+                className={`px-4 py-1.5 text-sm rounded disabled:opacity-50 transition-colors ${
+                  modalMode === "delete"
+                    ? "bg-red-600/20 text-red-400 hover:bg-red-600/30"
+                    : "bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30"
+                }`}
+              >
+                {actionLoading ? "…" : modalMode === "delete" ? "Löschen" : "Anlegen"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

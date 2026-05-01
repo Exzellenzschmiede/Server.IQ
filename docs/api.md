@@ -220,6 +220,23 @@ Read file content (max 2 MB). Returns 415 for binary files.
 { "path": "/etc/nginx/nginx.conf", "content": "..." }
 ```
 
+### `POST /files/mkdir` *(admin)*
+Creates a new directory (including parent directories).
+**Body**
+```json
+{ "path": "/var/myapp/logs" }
+```
+
+### `DELETE /files/delete?path=<path>` *(admin)*
+Deletes a file or directory. Directories are removed recursively.
+
+### `POST /files/copy` *(admin)*
+Copies a file or directory to a new path (destination must not exist).
+**Body**
+```json
+{ "src": "/etc/nginx/nginx.conf", "dst": "/etc/nginx/nginx.conf.bak" }
+```
+
 ---
 
 ## Notifications — `/notifications`
