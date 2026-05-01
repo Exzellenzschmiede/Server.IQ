@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  getAlertHistory,
   getNotificationConfig,
   testNotification,
   updateNotificationConfig,
+  type AlertHistoryEntry,
 } from "../api/notifications";
 import type { NotificationConfig } from "../types/notifications";
 
@@ -61,92 +63,125 @@ function Toggle({
   );
 }
 
+type Msg = { text: string; ok: boolean } | null;
+
+function InlineMsg({ msg }: { msg: Msg }) {
+  if (!msg) return null;
+  return (
+    <p className={`text-xs mt-1 ${msg.ok ? "text-emerald-400" : "text-red-400"}`}>
+      {msg.ok ? "✓" : "✗"} {msg.text}
+    </p>
+  );
+}
+
+type SaveStatus = "idle" | "pending" | "saving" | "saved" | "error";
+
 export default function NotificationsPage() {
   const [cfg, setCfg] = useState<NotificationConfig | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [history, setHistory] = useState<AlertHistoryEntry[]>([]);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [testing, setTesting] = useState<"telegram" | "email" | null>(null);
-  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  const [telegramMsg, setTelegramMsg] = useState<Msg>(null);
+  const [emailMsg, setEmailMsg] = useState<Msg>(null);
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cfgRef = useRef<NotificationConfig | null>(null);
 
   useEffect(() => {
     getNotificationConfig()
       .then(setCfg)
       .finally(() => setLoading(false));
+    getAlertHistory(50).then(setHistory).catch(() => {});
   }, []);
 
-  function flash(text: string, ok: boolean) {
-    setMsg({ text, ok });
-    setTimeout(() => setMsg(null), 5000);
+  function flash(set: (m: Msg) => void, text: string, ok: boolean) {
+    set({ text, ok });
+    setTimeout(() => set(null), 6000);
   }
 
   function update<K extends keyof NotificationConfig>(key: K, value: NotificationConfig[K]) {
-    setCfg((prev) => (prev ? { ...prev, [key]: value } : prev));
+    setCfg((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, [key]: value };
+      cfgRef.current = next;
+      scheduleSave();
+      return next;
+    });
   }
 
-  async function save() {
-    if (!cfg) return;
-    setSaving(true);
-    try {
-      const updated = await updateNotificationConfig(cfg);
-      setCfg(updated);
-      flash("Einstellungen gespeichert", true);
-    } catch {
-      flash("Fehler beim Speichern", false);
-    } finally {
-      setSaving(false);
-    }
+  function scheduleSave() {
+    setSaveStatus("pending");
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      const snapshot = cfgRef.current;
+      if (!snapshot) return;
+      setSaveStatus("saving");
+      try {
+        const updated = await updateNotificationConfig(snapshot);
+        setCfg(updated);
+        cfgRef.current = updated;
+        setSaveStatus("saved");
+        setTimeout(() => setSaveStatus("idle"), 3000);
+      } catch {
+        setSaveStatus("error");
+        setTimeout(() => setSaveStatus("idle"), 6000);
+      }
+    }, 800);
   }
 
   async function test(channel: "telegram" | "email") {
+    const setMsg = channel === "telegram" ? setTelegramMsg : setEmailMsg;
     setTesting(channel);
     try {
       const r = await testNotification(channel);
-      flash(r.success ? `Test-Nachricht gesendet (${channel})` : "Senden fehlgeschlagen", r.success);
+      flash(setMsg, r.success ? `Test message sent (${channel})` : "Failed to send", r.success);
     } catch (e: unknown) {
       const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      flash(detail ?? "Fehler beim Senden", false);
+      flash(setMsg, detail ?? "Error sending test message", false);
     } finally {
       setTesting(null);
     }
   }
 
   if (loading || !cfg) {
-    return <div className="p-6 text-sm text-slate-500">Lade…</div>;
+    return <div className="p-6 text-sm text-slate-500">Loading…</div>;
   }
+
+  const saveIndicator =
+    saveStatus === "pending" || saveStatus === "saving" ? (
+      <span className="text-xs text-slate-500">Saving…</span>
+    ) : saveStatus === "saved" ? (
+      <span className="text-xs text-emerald-400">✓ Saved</span>
+    ) : saveStatus === "error" ? (
+      <span className="text-xs text-red-400">✗ Error saving</span>
+    ) : null;
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-2xl">
-      <h1 className="text-xl font-bold">Benachrichtigungen</h1>
-
-      {msg && (
-        <div
-          className={`card text-sm border ${
-            msg.ok
-              ? "bg-emerald-600/10 border-emerald-500/30 text-emerald-300"
-              : "bg-red-600/10 border-red-500/30 text-red-400"
-          }`}
-        >
-          {msg.text}
-        </div>
-      )}
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold">Notifications</h1>
+        {saveIndicator}
+      </div>
 
       {/* General settings */}
       <div className="card space-y-4">
-        <h2 className="text-sm font-semibold text-slate-300">Allgemein</h2>
+        <h2 className="text-sm font-semibold text-slate-300">General</h2>
         <Field
-          label="Prüfintervall (Minuten)"
+          label="Check interval (minutes)"
           value={cfg.check_interval_minutes}
           onChange={(v) => update("check_interval_minutes", parseInt(v) || 5)}
           type="number"
           placeholder="5"
         />
         <Toggle
-          label="Benachrichtigung bei Ausfall"
+          label="Notify on failure"
           checked={cfg.notify_on_failure}
           onChange={(v) => update("notify_on_failure", v)}
         />
         <Toggle
-          label="Benachrichtigung bei Wiederherstellung"
+          label="Notify on recovery"
           checked={cfg.notify_on_recovery}
           onChange={(v) => update("notify_on_recovery", v)}
         />
@@ -157,7 +192,7 @@ export default function NotificationsPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-slate-300">Telegram</h2>
           <Toggle
-            label="Aktiviert"
+            label="Enabled"
             checked={cfg.telegram_enabled}
             onChange={(v) => update("telegram_enabled", v)}
           />
@@ -174,27 +209,31 @@ export default function NotificationsPage() {
           onChange={(v) => update("telegram_chat_id", v || null)}
           placeholder="-100123456789"
         />
-        <button
-          onClick={() => test("telegram")}
-          disabled={testing !== null || !cfg.telegram_bot_token}
-          className="px-3 py-1.5 text-sm bg-sky-600/20 text-sky-400 rounded hover:bg-sky-600/30 disabled:opacity-50 transition-colors"
-        >
-          {testing === "telegram" ? "Sende…" : "Test senden"}
-        </button>
+        <div>
+          <button
+            onClick={() => test("telegram")}
+            disabled={testing !== null || !cfg.telegram_bot_token || !cfg.telegram_chat_id}
+            className="px-3 py-1.5 text-sm bg-sky-600/20 text-sky-400 rounded hover:bg-sky-600/30 disabled:opacity-50 transition-colors"
+          >
+            {testing === "telegram" ? "Sending…" : "Send test"}
+          </button>
+          <InlineMsg msg={telegramMsg} />
+        </div>
       </div>
 
       {/* Email */}
       <div className="card space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-300">E-Mail (SMTP)</h2>
+          <h2 className="text-sm font-semibold text-slate-300">Email (SMTP)</h2>
           <Toggle
-            label="Aktiviert"
+            label="Enabled"
             checked={cfg.email_enabled}
             onChange={(v) => update("email_enabled", v)}
           />
         </div>
         <p className="text-xs text-slate-500">
-          Lokales Postfix: Host <code className="text-slate-400">localhost</code>, Port <code className="text-slate-400">25</code>, Benutzername + Passwort leer lassen.
+          Local Postfix: host <code className="text-slate-400">localhost</code>, port{" "}
+          <code className="text-slate-400">25</code>, leave username and password empty.
         </p>
         <div className="grid grid-cols-2 gap-3">
           <Field
@@ -211,47 +250,77 @@ export default function NotificationsPage() {
             placeholder="25"
           />
           <Field
-            label="Benutzername"
+            label="Username"
             value={cfg.email_smtp_user ?? ""}
             onChange={(v) => update("email_smtp_user", v || null)}
             placeholder="user@example.com"
           />
           <Field
-            label="Passwort"
+            label="Password"
             value={cfg.email_smtp_password ?? ""}
             onChange={(v) => update("email_smtp_password", v || null)}
             type="password"
             placeholder="••••••••"
           />
           <Field
-            label="Absender (Von)"
+            label="From address"
             value={cfg.email_from ?? ""}
             onChange={(v) => update("email_from", v || null)}
             placeholder="server-iq@example.com"
           />
           <Field
-            label="Empfänger (An)"
+            label="To address"
             value={cfg.email_to ?? ""}
             onChange={(v) => update("email_to", v || null)}
             placeholder="admin@example.com"
           />
         </div>
-        <button
-          onClick={() => test("email")}
-          disabled={testing !== null || !cfg.email_smtp_host}
-          className="px-3 py-1.5 text-sm bg-sky-600/20 text-sky-400 rounded hover:bg-sky-600/30 disabled:opacity-50 transition-colors"
-        >
-          {testing === "email" ? "Sende…" : "Test senden"}
-        </button>
+        <div>
+          <button
+            onClick={() => test("email")}
+            disabled={testing !== null || !cfg.email_smtp_host || !cfg.email_from || !cfg.email_to}
+            className="px-3 py-1.5 text-sm bg-sky-600/20 text-sky-400 rounded hover:bg-sky-600/30 disabled:opacity-50 transition-colors"
+          >
+            {testing === "email" ? "Sending…" : "Send test"}
+          </button>
+          <InlineMsg msg={emailMsg} />
+        </div>
       </div>
 
-      <button
-        onClick={save}
-        disabled={saving}
-        className="w-full py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-      >
-        {saving ? "Speichert…" : "Einstellungen speichern"}
-      </button>
+      {/* Alert history */}
+      {history.length > 0 && (
+        <div className="card space-y-3">
+          <h2 className="text-sm font-semibold text-slate-300">Alert History</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-slate-500 text-left">
+                  <th className="pb-2 pr-4 font-medium">Time</th>
+                  <th className="pb-2 pr-4 font-medium">Channel</th>
+                  <th className="pb-2 pr-4 font-medium">Service</th>
+                  <th className="pb-2 pr-4 font-medium">Event</th>
+                  <th className="pb-2 font-medium">Message</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700/50">
+                {history.map((h) => (
+                  <tr key={h.id} className="text-slate-400">
+                    <td className="py-1.5 pr-4 whitespace-nowrap text-slate-500">
+                      {new Date(h.recorded_at).toLocaleString()}
+                    </td>
+                    <td className="py-1.5 pr-4 capitalize">{h.channel}</td>
+                    <td className="py-1.5 pr-4 font-mono">{h.service_key}</td>
+                    <td className={`py-1.5 pr-4 font-medium ${h.event === "down" ? "text-red-400" : "text-emerald-400"}`}>
+                      {h.event}
+                    </td>
+                    <td className="py-1.5 text-slate-500 truncate max-w-xs">{h.message}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

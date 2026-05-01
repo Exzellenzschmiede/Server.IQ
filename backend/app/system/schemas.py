@@ -126,6 +126,27 @@ class MetricHistoryPoint(BaseModel):
     net_sent_bps: float
 
 
+class PortInfo(BaseModel):
+    protocol: str
+    local_address: str
+    local_port: int
+    state: str
+    pid: int | None
+    process_name: str | None
+
+
+class KillProcessResponse(BaseModel):
+    success: bool
+    pid: int
+    message: str
+
+
+class PowerActionResponse(BaseModel):
+    success: bool
+    action: str
+    message: str
+
+
 HealthStatus = Literal["ok", "warning", "critical"]
 
 

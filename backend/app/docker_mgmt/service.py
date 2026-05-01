@@ -87,6 +87,7 @@ def _parse_inspect_container(data: dict) -> ContainerInfo:
     volumes = [b for b in (host_config.get("Binds") or []) if b]
     networks = list(network_settings.get("Networks", {}).keys())
     restart_policy = (host_config.get("RestartPolicy") or {}).get("Name") or None
+    env = [e for e in (config.get("Env") or []) if e]
 
     container_id = data.get("Id", "")
     machine_status = state.get("Status", "")
@@ -105,6 +106,7 @@ def _parse_inspect_container(data: dict) -> ContainerInfo:
         volumes=volumes,
         networks=networks,
         restart_policy=restart_policy if restart_policy and restart_policy != "no" else None,
+        env=env,
     )
 
 

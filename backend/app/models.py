@@ -84,3 +84,16 @@ class ServiceAlertState(Base):
     key: Mapped[str] = mapped_column(String(64), primary_key=True)
     is_down: Mapped[bool] = mapped_column(Boolean, default=False)
     alerted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AlertHistory(Base):
+    __tablename__ = "alert_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+    channel: Mapped[str] = mapped_column(String(32), nullable=False)
+    service_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    event: Mapped[str] = mapped_column(String(16), nullable=False)   # "down" or "recovery"
+    message: Mapped[str] = mapped_column(Text, nullable=False)

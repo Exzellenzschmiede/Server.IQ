@@ -133,3 +133,12 @@ export interface MetricHistoryPoint {
   net_recv_bps: number;
   net_sent_bps: number;
 }
+
+export interface PortInfo {
+  protocol: string;
+  local_address: string;
+  local_port: number;
+  state: string;
+  pid: number | null;
+  process_name: string | null;
+}

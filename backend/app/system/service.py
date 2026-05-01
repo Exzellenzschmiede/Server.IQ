@@ -448,3 +448,64 @@ def _fmt_bytes(b: int) -> str:
             return f"{b:.1f} {unit}"
         b //= 1024
     return f"{b} PB"
+
+
+def get_open_ports() -> list:
+    import socket as _socket
+    from app.system.schemas import PortInfo
+    result = []
+    seen: set = set()
+    try:
+        connections = psutil.net_connections(kind="inet")
+    except psutil.AccessDenied:
+        return []
+    for conn in connections:
+        laddr = conn.laddr
+        if not laddr:
+            continue
+        key = (conn.type, laddr.ip, laddr.port, conn.status or "")
+        if key in seen:
+            continue
+        seen.add(key)
+        proc_name = None
+        if conn.pid:
+            try:
+                proc_name = psutil.Process(conn.pid).name()
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+        proto = "tcp" if conn.type == _socket.SOCK_STREAM else "udp"
+        result.append(PortInfo(
+            protocol=proto,
+            local_address=laddr.ip,
+            local_port=laddr.port,
+            state=conn.status or "",
+            pid=conn.pid,
+            process_name=proc_name,
+        ))
+    result.sort(key=lambda p: p.local_port)
+    return result
+
+
+def kill_process(pid: int):
+    from app.system.schemas import KillProcessResponse
+    try:
+        proc = psutil.Process(pid)
+        name = proc.name()
+        proc.kill()
+        return KillProcessResponse(success=True, pid=pid, message=f"Process '{name}' (PID {pid}) killed")
+    except psutil.NoSuchProcess:
+        return KillProcessResponse(success=False, pid=pid, message=f"Process {pid} not found")
+    except psutil.AccessDenied:
+        return KillProcessResponse(success=False, pid=pid, message=f"Permission denied for PID {pid}")
+
+
+def system_power_action(action: str):
+    from app.system.schemas import PowerActionResponse
+    if action not in ("reboot", "shutdown"):
+        return PowerActionResponse(success=False, action=action, message="Invalid action")
+    try:
+        cmd = ["reboot"] if action == "reboot" else ["poweroff"]
+        subprocess.Popen(cmd)
+        return PowerActionResponse(success=True, action=action, message=f"System {action} initiated")
+    except Exception as exc:
+        return PowerActionResponse(success=False, action=action, message=str(exc))

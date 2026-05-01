@@ -1,30 +1,40 @@
 import asyncio
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.access_log.router import router as access_log_router
 from app.auth.router import router as auth_router
+from app.cleanup.router import router as cleanup_router
+from app.bandwidth.router import router as bandwidth_router
+from app.compose.router import router as compose_router
 from app.config import settings
+from app.nginx_mgmt.router import router as nginx_router
 from app.console.router import router as console_router
 from app.cron.router import router as cron_router
 from app.database import AsyncSessionLocal, engine
 from app.docker_mgmt.router import router as docker_router
+from app.fail2ban.router import router as fail2ban_router
 from app.files.router import router as files_router
 from app.firewall.router import router as firewall_router
 from app.logs.router import router as logs_router
-from app.models import Base, MetricSnapshot, MonitoredService, NotificationConfig, ServiceAlertState
+from app.models import AlertHistory, AppConfig, Base, MetricSnapshot, MonitoredService, NotificationConfig, ServiceAlertState
 from app.notifications.router import router as notifications_router
 from app.settings.router import router as settings_router
 from app.ssl_certs.router import router as ssl_router
 from app.system.router import router as system_router
 from app.system.service import get_all_metrics, get_services
+from app.updates.router import router as updates_router
 from app.users.router import router as users_router
 
 
@@ -50,7 +60,7 @@ async def _migrate_service_hosts(db: AsyncSession) -> None:
 
 
 async def _metric_snapshot_loop() -> None:
-    await asyncio.sleep(10)  # let the app start up first
+    await asyncio.sleep(10)
     while True:
         try:
             metrics = get_all_metrics()
@@ -97,25 +107,72 @@ async def _notification_monitor_loop() -> None:
                             was_down = state.is_down
                             if is_down and not was_down and cfg.notify_on_failure:
                                 msg = (
-                                    f"🔴 <b>Service ausgefallen</b>\n"
+                                    f"🔴 <b>Service down</b>\n"
                                     f"Service: <b>{svc.display_name}</b>\n"
                                     f"Status: {svc.status}\n"
-                                    f"Zeit: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
+                                    f"Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
                                 )
                                 await notify(cfg, msg)
                                 state.alerted_at = datetime.now(timezone.utc)
+                                channels = []
+                                if cfg.telegram_enabled and cfg.telegram_bot_token:
+                                    channels.append("telegram")
+                                if cfg.email_enabled and cfg.email_smtp_host:
+                                    channels.append("email")
+                                for ch in channels:
+                                    db.add(AlertHistory(channel=ch, service_key=key, event="down", message=msg))
                             elif not is_down and was_down and cfg.notify_on_recovery:
                                 msg = (
-                                    f"🟢 <b>Service wiederhergestellt</b>\n"
+                                    f"🟢 <b>Service recovered</b>\n"
                                     f"Service: <b>{svc.display_name}</b>\n"
-                                    f"Zeit: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
+                                    f"Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
                                 )
                                 await notify(cfg, msg)
+                                channels = []
+                                if cfg.telegram_enabled and cfg.telegram_bot_token:
+                                    channels.append("telegram")
+                                if cfg.email_enabled and cfg.email_smtp_host:
+                                    channels.append("email")
+                                for ch in channels:
+                                    db.add(AlertHistory(channel=ch, service_key=key, event="recovery", message=msg))
                             state.is_down = is_down
                         await db.commit()
         except Exception:
             pass
         await asyncio.sleep(interval)
+
+
+# ── Upload size limit middleware ───────────────────────────────────────────────
+# Cache the configured limit for 30 seconds to avoid a DB hit on every upload.
+_upload_limit_cache: dict = {"bytes": 100 * 1024 * 1024, "until": 0.0}
+
+
+async def _get_upload_limit_bytes() -> int:
+    now = time.time()
+    if now >= _upload_limit_cache["until"]:
+        try:
+            async with AsyncSessionLocal() as db:
+                cfg = await db.scalar(select(AppConfig).where(AppConfig.id == 1))
+                mb = cfg.upload_max_size_mb if cfg else 100
+        except Exception:
+            mb = 100
+        _upload_limit_cache["bytes"] = mb * 1024 * 1024
+        _upload_limit_cache["until"] = now + 30
+    return _upload_limit_cache["bytes"]
+
+
+class UploadSizeLimitMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        if request.url.path.endswith("/files/upload") and request.method == "POST":
+            cl = request.headers.get("content-length")
+            if cl:
+                limit = await _get_upload_limit_bytes()
+                if int(cl) > limit:
+                    return JSONResponse(
+                        {"detail": f"Upload exceeds the configured limit of {limit // (1024 * 1024)} MB"},
+                        status_code=413,
+                    )
+        return await call_next(request)
 
 
 @asynccontextmanager
@@ -146,6 +203,7 @@ app = FastAPI(title="Server.IQ API", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+app.add_middleware(UploadSizeLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -166,3 +224,10 @@ app.include_router(ssl_router,           prefix="/api/v1/ssl",           tags=["
 app.include_router(cron_router,          prefix="/api/v1/cron",          tags=["cron"])
 app.include_router(files_router,         prefix="/api/v1/files",         tags=["files"])
 app.include_router(notifications_router, prefix="/api/v1/notifications", tags=["notifications"])
+app.include_router(access_log_router,    prefix="/api/v1/access-log",    tags=["access-log"])
+app.include_router(updates_router,       prefix="/api/v1/updates",       tags=["updates"])
+app.include_router(fail2ban_router,      prefix="/api/v1/fail2ban",      tags=["fail2ban"])
+app.include_router(bandwidth_router,     prefix="/api/v1/bandwidth",     tags=["bandwidth"])
+app.include_router(compose_router,       prefix="/api/v1/compose",       tags=["compose"])
+app.include_router(cleanup_router,       prefix="/api/v1/cleanup",       tags=["cleanup"])
+app.include_router(nginx_router,         prefix="/api/v1/nginx",         tags=["nginx"])

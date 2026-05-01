@@ -110,7 +110,7 @@ function UserForm({
       onSave();
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      setError(msg ?? "Fehler beim Speichern");
+      setError(msg ?? "Error saving");
     } finally {
       setSaving(false);
     }
@@ -131,7 +131,7 @@ function UserForm({
           className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
       </div>
       <div>
-        <label className="block text-xs text-slate-400 mb-1">Rolle</label>
+        <label className="block text-xs text-slate-400 mb-1">Role</label>
         <select value={form.role} onChange={(e) => set("role")(e.target.value)}
           className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
           <option value="admin">Admin</option>
@@ -143,9 +143,9 @@ function UserForm({
       )}
       {error && <p className="text-xs text-red-400">{error}</p>}
       <div className="flex gap-2 justify-end">
-        <button type="button" onClick={onClose} className="btn-ghost">Abbrechen</button>
+        <button type="button" onClick={onClose} className="btn-ghost">Cancel</button>
         <button type="submit" disabled={saving} className="btn-primary">
-          {saving ? <Spinner size="sm" /> : isEdit ? "Speichern" : "Anlegen"}
+          {saving ? <Spinner size="sm" /> : isEdit ? "Save" : "Create"}
         </button>
       </div>
     </form>
@@ -165,7 +165,7 @@ function PasswordResetModal({ user, onSave, onClose }: { user: UserResponse; onS
       await resetPassword(user.id, password);
       onSave();
     } catch {
-      setError("Fehler beim Zurücksetzen");
+      setError("Error resetting password");
     } finally {
       setSaving(false);
     }
@@ -173,13 +173,13 @@ function PasswordResetModal({ user, onSave, onClose }: { user: UserResponse; onS
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <p className="text-sm text-slate-400">Neues Passwort für <span className="text-slate-200">{user.name}</span> setzen.</p>
-      <PasswordField value={password} onChange={setPassword} label="Neues Passwort" />
+      <p className="text-sm text-slate-400">Set a new password for <span className="text-slate-200">{user.name}</span>.</p>
+      <PasswordField value={password} onChange={setPassword} label="New Password" />
       {error && <p className="text-xs text-red-400">{error}</p>}
       <div className="flex gap-2 justify-end">
-        <button type="button" onClick={onClose} className="btn-ghost">Abbrechen</button>
+        <button type="button" onClick={onClose} className="btn-ghost">Cancel</button>
         <button type="submit" disabled={saving || password.length < 8} className="btn-primary">
-          {saving ? <Spinner size="sm" /> : "Zurücksetzen"}
+          {saving ? <Spinner size="sm" /> : "Reset"}
         </button>
       </div>
     </form>
@@ -219,9 +219,9 @@ export default function UsersPage() {
   return (
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Benutzerverwaltung</h1>
+        <h1 className="text-xl font-bold">Users</h1>
         <button onClick={() => setModal({ type: "create" })} className="btn-primary">
-          + Benutzer anlegen
+          + Add user
         </button>
       </div>
 
@@ -239,21 +239,21 @@ export default function UsersPage() {
                   </span>
                   {!u.is_active && <StatusBadge status="inactive" />}
                   {u.id === currentUser.id && (
-                    <span className="text-xs text-slate-500">(ich)</span>
+                    <span className="text-xs text-slate-500">(you)</span>
                   )}
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5">{u.email}</p>
               </div>
               <div className="flex gap-1.5 flex-shrink-0">
                 <button onClick={() => setModal({ type: "edit", user: u })} className="btn-ghost text-xs py-1">
-                  Bearbeiten
+                  Edit
                 </button>
                 <button onClick={() => setModal({ type: "password", user: u })} className="btn-ghost text-xs py-1">
-                  Passwort
+                  Password
                 </button>
                 {u.id !== currentUser.id && (
                   <button onClick={() => setModal({ type: "delete", user: u })} className="btn-danger text-xs py-1">
-                    Löschen
+                    Delete
                   </button>
                 )}
               </div>
@@ -263,29 +263,29 @@ export default function UsersPage() {
       )}
 
       {modal?.type === "create" && (
-        <Modal title="Benutzer anlegen" onClose={() => setModal(null)}>
+        <Modal title="Add User" onClose={() => setModal(null)}>
           <UserForm onSave={closeAndReload} onClose={() => setModal(null)} />
         </Modal>
       )}
       {modal?.type === "edit" && (
-        <Modal title="Benutzer bearbeiten" onClose={() => setModal(null)}>
+        <Modal title="Edit User" onClose={() => setModal(null)}>
           <UserForm initial={modal.user} onSave={closeAndReload} onClose={() => setModal(null)} />
         </Modal>
       )}
       {modal?.type === "password" && (
-        <Modal title="Passwort zurücksetzen" onClose={() => setModal(null)}>
+        <Modal title="Reset Password" onClose={() => setModal(null)}>
           <PasswordResetModal user={modal.user} onSave={closeAndReload} onClose={() => setModal(null)} />
         </Modal>
       )}
       {modal?.type === "delete" && (
-        <Modal title="Benutzer löschen?" onClose={() => setModal(null)}>
+        <Modal title="Delete User?" onClose={() => setModal(null)}>
           <p className="text-sm text-slate-400">
-            <span className="text-slate-200">{modal.user.name}</span> ({modal.user.email}) wird dauerhaft gelöscht.
+            <span className="text-slate-200">{modal.user.name}</span> ({modal.user.email}) will be permanently deleted.
           </p>
           <div className="flex gap-2 justify-end">
-            <button onClick={() => setModal(null)} className="btn-ghost">Abbrechen</button>
+            <button onClick={() => setModal(null)} className="btn-ghost">Cancel</button>
             <button onClick={() => handleDelete(modal.user)} disabled={deleting} className="btn-danger">
-              {deleting ? <Spinner size="sm" /> : "Löschen"}
+              {deleting ? <Spinner size="sm" /> : "Delete"}
             </button>
           </div>
         </Modal>

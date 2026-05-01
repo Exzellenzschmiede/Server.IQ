@@ -22,6 +22,7 @@ class ContainerInfo(BaseModel):
     volumes: list[str]
     networks: list[str]
     restart_policy: str | None
+    env: list[str] = []
 
 
 class ContainersResponse(BaseModel):
