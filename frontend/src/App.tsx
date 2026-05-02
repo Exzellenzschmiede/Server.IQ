@@ -35,6 +35,10 @@ import SslPage from "./pages/SslPage";
 import UpdatesPage from "./pages/UpdatesPage";
 import UsersPage from "./pages/UsersPage";
 import PowerPage from "./pages/PowerPage";
+import VHostsPage from "./pages/VHostsPage";
+import DatabasePage from "./pages/DatabasePage";
+import BackupsPage from "./pages/BackupsPage";
+import EmailPage from "./pages/EmailPage";
 
 function useSetupRequired() {
   const [setupRequired, setSetupRequired] = useState<boolean | null>(null);
@@ -103,6 +107,10 @@ export default function App() {
                     <Route path="audit" element={<RequireAdmin><AuditLogPage /></RequireAdmin>} />
                     <Route path="settings" element={<RequireAdmin><SettingsPage /></RequireAdmin>} />
                     <Route path="logs" element={<RequireAdmin><AppLogsPage /></RequireAdmin>} />
+                    <Route path="vhosts" element={<RequireAdmin><VHostsPage /></RequireAdmin>} />
+                    <Route path="databases" element={<RequireAdmin><DatabasePage /></RequireAdmin>} />
+                    <Route path="backups" element={<RequireAdmin><BackupsPage /></RequireAdmin>} />
+                    <Route path="email" element={<RequireAdmin><EmailPage /></RequireAdmin>} />
                   </Route>
                 </Routes>
               </ProtectedRoute>

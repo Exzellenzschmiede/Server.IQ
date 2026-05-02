@@ -35,6 +35,16 @@ const GROUPS: Group[] = [
     ],
   },
   {
+    key: "hosting",
+    label: "Hosting",
+    items: [
+      { to: "/vhosts",    label: "Virtual Hosts", icon: "🌍" },
+      { to: "/databases", label: "Databases",     icon: "🗄" },
+      { to: "/backups",   label: "Backups",       icon: "💾" },
+      { to: "/email",     label: "Email",         icon: "✉" },
+    ],
+  },
+  {
     key: "system",
     label: "System",
     items: [

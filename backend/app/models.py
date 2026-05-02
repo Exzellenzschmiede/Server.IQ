@@ -121,3 +121,33 @@ class AlertHistory(Base):
     service_key: Mapped[str] = mapped_column(String(64), nullable=False)
     event: Mapped[str] = mapped_column(String(16), nullable=False)   # "down" or "recovery"
     message: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class DBConnection(Base):
+    __tablename__ = "db_connections"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    db_type: Mapped[str] = mapped_column(String(16), nullable=False)   # postgresql | mysql
+    host: Mapped[str] = mapped_column(String(256), nullable=False, default="127.0.0.1")
+    port: Mapped[int] = mapped_column(Integer, nullable=False)
+    username: Mapped[str] = mapped_column(String(128), nullable=False)
+    password: Mapped[str] = mapped_column(String(256), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Backup(Base):
+    __tablename__ = "backups"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    size_bytes: Mapped[int] = mapped_column(Integer, default=0)
+    backup_path: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    backup_type: Mapped[str] = mapped_column(String(16), nullable=False)   # files | database | mixed
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="running")
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    include_paths: Mapped[str] = mapped_column(Text, nullable=False, default="[]")  # JSON list
+    db_connection_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    db_name: Mapped[str | None] = mapped_column(String(256), nullable=True)

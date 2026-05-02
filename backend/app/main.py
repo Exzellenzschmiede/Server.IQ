@@ -17,8 +17,12 @@ from app.access_log.router import router as access_log_router
 from app.ai.router import router as ai_router
 from app.audit.router import router as audit_router
 from app.auth.router import router as auth_router
+from app.backups.router import router as backups_router
 from app.cleanup.router import router as cleanup_router
 from app.bandwidth.router import router as bandwidth_router
+from app.databases.router import router as databases_router
+from app.email_mgmt.router import router as email_router
+from app.vhosts.router import router as vhosts_router
 from app.config import settings
 from app.network.router import router as network_router
 from app.nginx_mgmt.router import router as nginx_router
@@ -305,3 +309,7 @@ app.include_router(ai_router,            prefix="/api/v1/ai",            tags=["
 app.include_router(audit_router,         prefix="/api/v1/audit",         tags=["audit"])
 app.include_router(ssh_keys_router,      prefix="/api/v1/ssh-keys",      tags=["ssh-keys"])
 app.include_router(network_router,       prefix="/api/v1/network",       tags=["network"])
+app.include_router(vhosts_router,        prefix="/api/v1/vhosts",        tags=["vhosts"])
+app.include_router(databases_router,     prefix="/api/v1/databases",     tags=["databases"])
+app.include_router(backups_router,       prefix="/api/v1/backups",       tags=["backups"])
+app.include_router(email_router,         prefix="/api/v1/email",         tags=["email"])
