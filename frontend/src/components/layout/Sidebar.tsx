@@ -75,10 +75,11 @@ function findActiveGroup(pathname: string, groups: Group[]): string | null {
   return null;
 }
 
-function NavGroup({ group, open, onToggle }: {
+function NavGroup({ group, open, onToggle, onNavigate }: {
   group: Group;
   open: boolean;
   onToggle: () => void;
+  onNavigate?: () => void;
 }) {
   return (
     <div>
@@ -99,8 +100,9 @@ function NavGroup({ group, open, onToggle }: {
               key={to}
               to={to}
               end={to === "/"}
+              onClick={onNavigate}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                   isActive
                     ? "bg-indigo-600/20 text-indigo-300"
                     : "text-slate-400 hover:bg-slate-700/50 hover:text-slate-200"
@@ -117,14 +119,19 @@ function NavGroup({ group, open, onToggle }: {
   );
 }
 
-export default function Sidebar() {
+interface SidebarProps {
+  /** When true, renders as visible (mobile drawer mode — no hidden md:flex). */
+  mobile?: boolean;
+  onClose?: () => void;
+}
+
+export default function Sidebar({ mobile, onClose }: SidebarProps = {}) {
   const { user, logout } = useAuth();
   const { pathname } = useLocation();
   const groups = user?.is_admin ? [...GROUPS, ADMIN_GROUP] : GROUPS;
 
   const [openKey, setOpenKey] = useState<string | null>(() => findActiveGroup(pathname, groups));
 
-  // When navigating (e.g. via BottomNav or direct URL), open the matching group
   useEffect(() => {
     const g = findActiveGroup(pathname, groups);
     if (g) setOpenKey(g);
@@ -135,10 +142,21 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="hidden md:flex flex-col w-56 h-screen bg-slate-800 border-r border-slate-700/50 px-3 py-4">
-      <div className="flex items-center gap-2.5 px-2 mb-4">
-        <Logo size={28} />
-        <span className="text-indigo-400 text-xl font-bold">Server.IQ</span>
+    <aside className={`${mobile ? "flex" : "hidden md:flex"} flex-col w-64 h-screen bg-slate-800 border-r border-slate-700/50 px-3 py-4`}>
+      <div className="flex items-center justify-between px-2 mb-4">
+        <div className="flex items-center gap-2.5">
+          <Logo size={28} />
+          <span className="text-indigo-400 text-xl font-bold">Server.IQ</span>
+        </div>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="text-slate-500 hover:text-slate-300 transition-colors p-1 -mr-1 text-xl leading-none"
+            aria-label="Close menu"
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       <nav className="flex flex-col flex-1 overflow-y-auto min-h-0">
@@ -148,6 +166,7 @@ export default function Sidebar() {
             group={group}
             open={openKey === group.key}
             onToggle={() => toggle(group.key)}
+            onNavigate={onClose}
           />
         ))}
       </nav>
@@ -156,7 +175,7 @@ export default function Sidebar() {
         <p className="px-3 text-xs text-slate-500 truncate">{user?.name}</p>
         <p className="px-3 text-xs text-slate-600 truncate">{user?.email}</p>
         <button
-          onClick={logout}
+          onClick={() => { logout(); onClose?.(); }}
           className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-400 hover:bg-slate-700/50 hover:text-slate-200 transition-colors mt-1"
         >
           ↩ Logout
