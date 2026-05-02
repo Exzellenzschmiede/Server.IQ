@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Logo from "../ui/Logo";
-import BottomNav from "./BottomNav";
 import Sidebar from "./Sidebar";
 
 export default function AppShell() {
@@ -45,12 +44,10 @@ export default function AppShell() {
           </button>
         </header>
 
-        <main className="flex-1 overflow-auto pb-20 md:pb-0">
+        <main className="flex-1 overflow-auto">
           <Outlet />
         </main>
       </div>
-
-      <BottomNav />
     </div>
   );
 }
