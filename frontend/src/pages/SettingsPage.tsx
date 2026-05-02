@@ -4,12 +4,13 @@ import {
   deleteMonitoredService,
   getAppConfig,
   getMonitoredServices,
+  scanServices,
   updateAppConfig,
   updateMonitoredService,
 } from "../api/settings";
 import { PROVIDER_MODELS } from "../api/ai";
 import Spinner from "../components/ui/Spinner";
-import type { AppConfig, ServiceConfig, ServiceConfigCreate } from "../types/settings";
+import type { AppConfig, ServiceConfig, ServiceConfigCreate, ServiceScanResult } from "../types/settings";
 
 const EMPTY_FORM: ServiceConfigCreate = {
   key: "",
@@ -34,6 +35,14 @@ export default function SettingsPage() {
   const [editId, setEditId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  // Service scan
+  const [scanOpen, setScanOpen] = useState(false);
+  const [scanLoading, setScanLoading] = useState(false);
+  const [scanResults, setScanResults] = useState<ServiceScanResult[]>([]);
+  const [scanSelected, setScanSelected] = useState<Set<string>>(new Set());
+  const [scanAdding, setScanAdding] = useState(false);
+  const [scanError, setScanError] = useState("");
 
   // AI settings
   const [aiProvider, setAiProvider] = useState("");
@@ -109,6 +118,56 @@ export default function SettingsPage() {
     await deleteMonitoredService(id);
     setServices((prev) => prev.filter((s) => s.id !== id));
     if (editId === id) cancelEdit();
+  }
+
+  async function openScan() {
+    setScanOpen(true);
+    setScanLoading(true);
+    setScanError("");
+    setScanResults([]);
+    setScanSelected(new Set());
+    try {
+      const results = await scanServices();
+      setScanResults(results);
+      setScanSelected(new Set(results.map((r) => r.key)));
+    } catch {
+      setScanError("Scan failed. Make sure the backend is reachable.");
+    } finally {
+      setScanLoading(false);
+    }
+  }
+
+  function toggleScanItem(key: string) {
+    setScanSelected((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  }
+
+  async function handleAddSelected() {
+    const toAdd = scanResults.filter((r) => scanSelected.has(r.key));
+    if (!toAdd.length) return;
+    setScanAdding(true);
+    try {
+      const created: ServiceConfig[] = [];
+      for (const r of toAdd) {
+        const svc = await createMonitoredService({
+          key: r.key,
+          display_name: r.display_name,
+          host: r.host,
+          port: r.port,
+          enabled: true,
+        });
+        created.push(svc);
+      }
+      setServices((prev) => [...prev, ...created]);
+      setScanOpen(false);
+    } catch {
+      setScanError("Failed to add one or more services.");
+    } finally {
+      setScanAdding(false);
+    }
   }
 
   async function handleAiSave(e: React.FormEvent) {
@@ -204,9 +263,119 @@ export default function SettingsPage() {
         </form>
       </div>
 
+      {/* ── Service Scan Modal ───────────────────────────────────────────── */}
+      {scanOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-lg flex flex-col max-h-[85vh]">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700 shrink-0">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-200">Scan for Services</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Discovered services not yet monitored. Select which ones to add.
+                </p>
+              </div>
+              <button
+                onClick={() => setScanOpen(false)}
+                className="text-slate-500 hover:text-slate-300 text-xl leading-none p-1"
+              >✕</button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 min-h-0">
+              {scanLoading ? (
+                <div className="flex justify-center py-8"><Spinner /></div>
+              ) : scanError ? (
+                <p className="text-sm text-red-400 py-4 text-center">{scanError}</p>
+              ) : scanResults.length === 0 ? (
+                <p className="text-sm text-slate-500 py-4 text-center">
+                  No new services found. All detected services are already being monitored.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs text-slate-400">{scanResults.length} service{scanResults.length !== 1 ? "s" : ""} found</span>
+                    <div className="flex gap-3 text-xs">
+                      <button
+                        onClick={() => setScanSelected(new Set(scanResults.map((r) => r.key)))}
+                        className="text-indigo-400 hover:text-indigo-300"
+                      >Select all</button>
+                      <button
+                        onClick={() => setScanSelected(new Set())}
+                        className="text-slate-500 hover:text-slate-400"
+                      >Deselect all</button>
+                    </div>
+                  </div>
+                  {scanResults.map((r) => (
+                    <label
+                      key={r.key}
+                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                        scanSelected.has(r.key)
+                          ? "bg-indigo-600/10 border-indigo-500/40"
+                          : "bg-slate-700/30 border-slate-700/50 hover:border-slate-600"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={scanSelected.has(r.key)}
+                        onChange={() => toggleScanItem(r.key)}
+                        className="mt-0.5 accent-indigo-500 shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium text-slate-200">{r.display_name}</span>
+                          <code className="text-[10px] bg-slate-700 text-slate-400 rounded px-1.5 py-0.5">{r.key}</code>
+                          {r.port && (
+                            <code className="text-[10px] bg-slate-700 text-indigo-400 rounded px-1.5 py-0.5">:{r.port}</code>
+                          )}
+                          {!r.port && (
+                            <span className="text-[10px] text-slate-500">socket</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5 truncate">{r.description}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            {!scanLoading && !scanError && scanResults.length > 0 && (
+              <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-slate-700 shrink-0">
+                <span className="text-xs text-slate-500">
+                  {scanSelected.size} of {scanResults.length} selected
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setScanOpen(false)}
+                    className="btn-secondary py-1.5 px-4 text-sm"
+                  >Cancel</button>
+                  <button
+                    onClick={handleAddSelected}
+                    disabled={scanAdding || scanSelected.size === 0}
+                    className="btn-primary py-1.5 px-4 text-sm disabled:opacity-40"
+                  >
+                    {scanAdding ? <Spinner size="sm" /> : `Add ${scanSelected.size > 0 ? scanSelected.size : ""} selected`}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Monitored Services ───────────────────────────────────────────── */}
       <div className="card">
-        <h2 className="text-sm font-semibold text-slate-300 mb-3">Monitored Services</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-slate-300">Monitored Services</h2>
+          <button
+            onClick={openScan}
+            className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 border border-indigo-500/30 transition-colors"
+          >
+            🔍 Scan for services
+          </button>
+        </div>
         {loading ? (
           <div className="flex justify-center py-4"><Spinner /></div>
         ) : loadError ? (

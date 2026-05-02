@@ -1,5 +1,5 @@
 import client from "./client";
-import type { AppConfig, ServiceConfig, ServiceConfigCreate } from "../types/settings";
+import type { AppConfig, ServiceConfig, ServiceConfigCreate, ServiceScanResult } from "../types/settings";
 
 export const getAppConfig = async (): Promise<AppConfig> => {
   const { data } = await client.get<AppConfig>("/settings/app");
@@ -31,4 +31,9 @@ export const updateMonitoredService = async (
 
 export const deleteMonitoredService = async (id: number): Promise<void> => {
   await client.delete(`/settings/services/${id}`);
+};
+
+export const scanServices = async (): Promise<ServiceScanResult[]> => {
+  const { data } = await client.get<ServiceScanResult[]>("/settings/services/scan");
+  return data;
 };

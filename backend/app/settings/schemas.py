@@ -41,3 +41,11 @@ class ServiceConfigUpdate(BaseModel):
     host: str | None = None
     port: int | None = None
     enabled: bool | None = None
+
+
+class ServiceScanResult(BaseModel):
+    key: str
+    display_name: str
+    host: str | None
+    port: int | None
+    description: str

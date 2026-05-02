@@ -21,3 +21,11 @@ export interface ServiceConfigCreate {
   port: number | null;
   enabled: boolean;
 }
+
+export interface ServiceScanResult {
+  key: string;
+  display_name: string;
+  host: string | null;
+  port: number | null;
+  description: string;
+}
