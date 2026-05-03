@@ -9,6 +9,54 @@ export default function Markdown({ children }: { children: string }) {
   while (i < lines.length) {
     const line = lines[i];
 
+    // Markdown table: header row followed by separator row (|---|)
+    if (line.trim().startsWith("|") && i + 1 < lines.length && /^\s*\|[\s\-:|]+\|/.test(lines[i + 1])) {
+      const tableLines: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith("|")) {
+        tableLines.push(lines[i]);
+        i++;
+      }
+      const parseRow = (row: string) => row.split("|").slice(1, -1).map(c => c.trim());
+      const headers = parseRow(tableLines[0]);
+      const separators = parseRow(tableLines[1]);
+      const aligns = separators.map((s): React.CSSProperties["textAlign"] => {
+        const t = s.trim();
+        if (t.startsWith(":") && t.endsWith(":")) return "center";
+        if (t.endsWith(":")) return "right";
+        return "left";
+      });
+      const bodyRows = tableLines.slice(2).map(parseRow);
+      elements.push(
+        <div key={i} className="overflow-x-auto my-3 rounded-lg border border-slate-700/50">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="bg-slate-800/80 border-b border-slate-700">
+                {headers.map((h, j) => (
+                  <th key={j} style={{ textAlign: aligns[j] }}
+                    className="px-3 py-2 font-semibold text-slate-300 whitespace-nowrap">
+                    {inlineFormat(h)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-700/40">
+              {bodyRows.map((row, j) => (
+                <tr key={j} className="hover:bg-slate-700/20 transition-colors">
+                  {row.map((cell, k) => (
+                    <td key={k} style={{ textAlign: aligns[k] }}
+                      className="px-3 py-1.5 text-slate-300">
+                      {inlineFormat(cell)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+      continue;
+    }
+
     // Fenced code block
     if (line.trimStart().startsWith("```")) {
       const lang = line.trimStart().slice(3).trim();
