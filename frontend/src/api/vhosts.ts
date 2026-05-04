@@ -9,6 +9,7 @@ export interface VHost {
   enabled: boolean;
   ssl: boolean;
   config_path: string;
+  is_default: boolean;
 }
 
 export interface VHostCreate {

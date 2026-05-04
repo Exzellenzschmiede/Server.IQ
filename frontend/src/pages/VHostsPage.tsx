@@ -4,6 +4,10 @@ import {
   getVHosts, toggleVHost, updateVHostConfig,
 } from "../api/vhosts";
 import type { VHost } from "../api/vhosts";
+import {
+  getNginxStatus, reloadNginx, restartNginx, testNginxConfig,
+} from "../api/nginx";
+import type { NginxStatus } from "../types/nginx";
 import Spinner from "../components/ui/Spinner";
 
 const TYPE_LABELS: Record<string, string> = { static: "Static", php: "PHP", proxy: "Proxy" };
@@ -17,6 +21,11 @@ export default function VHostsPage() {
   const [vhosts, setVhosts] = useState<VHost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // nginx service status
+  const [nginxStatus, setNginxStatus] = useState<NginxStatus | null>(null);
+  const [nginxAction, setNginxAction] = useState<string | null>(null);
+  const [nginxMsg, setNginxMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   // Create form
   const [showForm, setShowForm] = useState(false);
@@ -40,9 +49,43 @@ export default function VHostsPage() {
 
   async function load() {
     setLoading(true);
-    try { setVhosts(await getVHosts()); setError(""); }
-    catch { setError("Failed to load vHosts. Make sure nginx is installed."); }
-    finally { setLoading(false); }
+    try {
+      const [vh, ns] = await Promise.all([getVHosts(), getNginxStatus()]);
+      setVhosts(vh);
+      setNginxStatus(ns);
+      setError("");
+    } catch {
+      setError("Failed to load vHosts. Make sure nginx is installed.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function flashNginx(ok: boolean, text: string) {
+    setNginxMsg({ ok, text });
+    setTimeout(() => setNginxMsg(null), 6000);
+  }
+
+  async function doNginxAction(action: "test" | "reload" | "restart") {
+    setNginxAction(action);
+    try {
+      if (action === "test") {
+        const r = await testNginxConfig();
+        flashNginx(r.ok, r.output);
+      } else if (action === "reload") {
+        const r = await reloadNginx();
+        flashNginx(r.ok, r.message);
+      } else {
+        const r = await restartNginx();
+        flashNginx(r.ok, r.message);
+      }
+      const ns = await getNginxStatus();
+      setNginxStatus(ns);
+    } catch {
+      flashNginx(false, "Action failed");
+    } finally {
+      setNginxAction(null);
+    }
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -107,6 +150,39 @@ export default function VHostsPage() {
           {showForm ? "Cancel" : "+ New vHost"}
         </button>
       </div>
+
+      {/* nginx status bar */}
+      {nginxStatus && (
+        <div className="card flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full shrink-0 ${nginxStatus.running ? "bg-emerald-400" : "bg-red-400"}`} />
+            <span className="text-sm text-slate-300">nginx {nginxStatus.running ? "running" : "stopped"}</span>
+          </div>
+          {nginxStatus.version && (
+            <span className="text-xs text-slate-500">v{nginxStatus.version}</span>
+          )}
+          {nginxStatus.config_test_ok !== null && (
+            <span className={`text-xs font-medium ${nginxStatus.config_test_ok ? "text-emerald-400" : "text-red-400"}`}>
+              config {nginxStatus.config_test_ok ? "✓ OK" : "✗ Error"}
+            </span>
+          )}
+          <div className="ml-auto flex gap-2">
+            {(["test", "reload", "restart"] as const).map(a => (
+              <button key={a} onClick={() => doNginxAction(a)} disabled={!!nginxAction}
+                className="btn-ghost text-xs px-3 py-1.5 capitalize disabled:opacity-50">
+                {nginxAction === a ? <Spinner size="sm" /> : a}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* nginx action result */}
+      {nginxMsg && (
+        <div className={`card text-xs font-mono whitespace-pre-wrap border ${nginxMsg.ok ? "bg-emerald-900/10 border-emerald-500/30 text-emerald-300" : "bg-red-900/10 border-red-500/30 text-red-400"}`}>
+          {nginxMsg.text}
+        </div>
+      )}
 
       {/* Create form */}
       {showForm && (
@@ -185,7 +261,12 @@ export default function VHostsPage() {
                 <tbody className="divide-y divide-slate-700/50">
                   {vhosts.map(v => (
                     <tr key={v.domain} className="text-slate-300 hover:bg-slate-700/20">
-                      <td className="py-2 pr-4 font-medium">{v.domain}</td>
+                      <td className="py-2 pr-4 font-medium">
+                        {v.domain}
+                        {v.is_default && (
+                          <span className="ml-2 text-[10px] text-slate-500 bg-slate-700/50 rounded px-1.5 py-0.5">default</span>
+                        )}
+                      </td>
                       <td className="py-2 pr-4">
                         <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${TYPE_COLORS[v.vhost_type] ?? "bg-slate-700 text-slate-300"}`}>
                           {TYPE_LABELS[v.vhost_type] ?? v.vhost_type}
@@ -197,7 +278,9 @@ export default function VHostsPage() {
                       <td className="py-2 pr-4">
                         {v.ssl
                           ? <span className="text-emerald-400 text-xs">🔒 SSL</span>
-                          : <button onClick={() => handleSSL(v.domain)} className="text-xs text-slate-500 hover:text-indigo-400 transition-colors">Enable SSL</button>}
+                          : !v.is_default
+                            ? <button onClick={() => handleSSL(v.domain)} className="text-xs text-slate-500 hover:text-indigo-400 transition-colors">Enable SSL</button>
+                            : <span className="text-xs text-slate-600">—</span>}
                       </td>
                       <td className="py-2 pr-4">
                         <button onClick={() => handleToggle(v.domain, v.enabled)}
@@ -208,7 +291,9 @@ export default function VHostsPage() {
                       <td className="py-2 text-right">
                         <div className="flex gap-3 justify-end">
                           <button onClick={() => openConfig(v.domain)} className="text-xs text-indigo-400 hover:text-indigo-300">Edit config</button>
-                          <button onClick={() => handleDelete(v.domain)} className="text-xs text-red-400 hover:text-red-300">Delete</button>
+                          {!v.is_default && (
+                            <button onClick={() => handleDelete(v.domain)} className="text-xs text-red-400 hover:text-red-300">Delete</button>
+                          )}
                         </div>
                       </td>
                     </tr>

@@ -18,6 +18,7 @@ class VHostOut(BaseModel):
     enabled: bool
     ssl: bool
     config_path: str
+    is_default: bool = False
 
 
 class VHostConfigUpdate(BaseModel):

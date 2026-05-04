@@ -13,7 +13,6 @@ import AppLogsPage from "./pages/AppLogsPage";
 import AuditLogPage from "./pages/AuditLogPage";
 import BandwidthPage from "./pages/BandwidthPage";
 import CleanupPage from "./pages/CleanupPage";
-import NginxPage from "./pages/NginxPage";
 import ConsolePage from "./pages/ConsolePage";
 import ContainerLogsPage from "./pages/ContainerLogsPage";
 import ContainersPage from "./pages/ContainersPage";
@@ -95,7 +94,7 @@ export default function App() {
                     <Route path="updates" element={<UpdatesPage />} />
                     <Route path="bandwidth" element={<BandwidthPage />} />
                     <Route path="access-log" element={<AccessLogPage />} />
-                    <Route path="nginx" element={<NginxPage />} />
+                    <Route path="nginx" element={<Navigate to="/vhosts" replace />} />
                     <Route path="network" element={<NetworkPage />} />
                     <Route path="files" element={<FilesPage />} />
                     <Route path="ai" element={<AiChatPage />} />

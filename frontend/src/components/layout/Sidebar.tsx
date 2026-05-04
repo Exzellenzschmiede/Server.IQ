@@ -31,7 +31,6 @@ const GROUPS: Group[] = [
       { to: "/fail2ban",   label: "Fail2ban",   icon: "🚫" },
       { to: "/ports",      label: "Ports",      icon: "🔌" },
       { to: "/ssl",        label: "SSL Certs",  icon: "🔒" },
-      { to: "/nginx",      label: "Nginx",      icon: "🌐" },
     ],
   },
   {

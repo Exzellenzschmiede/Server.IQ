@@ -34,14 +34,21 @@ def list_vhosts() -> list[dict]:
     if not SITES_AVAILABLE.exists():
         return []
     result = []
-    for conf in sorted(SITES_AVAILABLE.glob("*.conf")):
-        if conf.stem == "default":
+    for conf in sorted(SITES_AVAILABLE.iterdir()):
+        if not conf.is_file():
             continue
         try:
             content = conf.read_text()
             parsed = _parse_config(content)
             enabled = (SITES_ENABLED / conf.name).is_symlink() or (SITES_ENABLED / conf.name).exists()
-            result.append({"domain": conf.stem, "enabled": enabled, "config_path": str(conf), **parsed})
+            is_default = conf.name == "default"
+            result.append({
+                "domain": conf.stem,
+                "enabled": enabled,
+                "config_path": str(conf),
+                "is_default": is_default,
+                **parsed,
+            })
         except Exception:
             pass
     return result
