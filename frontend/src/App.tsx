@@ -35,6 +35,7 @@ import UpdatesPage from "./pages/UpdatesPage";
 import UsersPage from "./pages/UsersPage";
 import PowerPage from "./pages/PowerPage";
 import VHostsPage from "./pages/VHostsPage";
+import WeatherPage from "./pages/WeatherPage";
 import DatabasePage from "./pages/DatabasePage";
 import BackupsPage from "./pages/BackupsPage";
 import EmailPage from "./pages/EmailPage";
@@ -105,6 +106,7 @@ export default function App() {
                     <Route path="notifications" element={<RequireAdmin><NotificationsPage /></RequireAdmin>} />
                     <Route path="audit" element={<RequireAdmin><AuditLogPage /></RequireAdmin>} />
                     <Route path="settings" element={<RequireAdmin><SettingsPage /></RequireAdmin>} />
+                    <Route path="weather" element={<WeatherPage />} />
                     <Route path="logs" element={<RequireAdmin><AppLogsPage /></RequireAdmin>} />
                     <Route path="vhosts" element={<RequireAdmin><VHostsPage /></RequireAdmin>} />
                     <Route path="databases" element={<RequireAdmin><DatabasePage /></RequireAdmin>} />

@@ -11,8 +11,9 @@ const GROUPS: Group[] = [
     key: "overview",
     label: "Overview",
     items: [
-      { to: "/",       label: "Dashboard", icon: "▣" },
-      { to: "/health", label: "Health",    icon: "🩺" },
+      { to: "/",        label: "Dashboard", icon: "▣" },
+      { to: "/health",  label: "Health",   icon: "🩺" },
+      { to: "/weather", label: "Weather",  icon: "🌤" },
     ],
   },
   {

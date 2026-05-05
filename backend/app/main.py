@@ -23,6 +23,7 @@ from app.bandwidth.router import router as bandwidth_router
 from app.databases.router import router as databases_router
 from app.email_mgmt.router import router as email_router
 from app.vhosts.router import router as vhosts_router
+from app.weather.router import router as weather_router
 from app.config import settings
 from app.network.router import router as network_router
 from app.nginx_mgmt.router import router as nginx_router
@@ -313,3 +314,4 @@ app.include_router(vhosts_router,        prefix="/api/v1/vhosts",        tags=["
 app.include_router(databases_router,     prefix="/api/v1/databases",     tags=["databases"])
 app.include_router(backups_router,       prefix="/api/v1/backups",       tags=["backups"])
 app.include_router(email_router,         prefix="/api/v1/email",         tags=["email"])
+app.include_router(weather_router,       prefix="/api/v1/weather",       tags=["weather"])
