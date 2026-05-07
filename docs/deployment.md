@@ -139,7 +139,7 @@ Grants the service user passwordless access to:
 - `ln -sf` nginx symlink
 - `nginx -t`
 
-> **Note:** Since the service now runs as `root`, these rules are no longer strictly required for the service itself but are kept for CI/CD deployments running as a non-root deploy user if the service user is ever changed back.
+> **Note:** Since the service runs as `root`, these rules are not strictly required for the service itself, but are kept for CI/CD deployments running as a non-root deploy user if the service user is ever changed back.
 
 ---
 
@@ -192,6 +192,12 @@ SELECT key, display_name, host, port, enabled FROM monitored_services;
 
 # View recent metric snapshots
 SELECT recorded_at, cpu_percent, memory_percent FROM metric_snapshots ORDER BY recorded_at DESC LIMIT 10;
+
+# View alert history
+SELECT recorded_at, channel, service_key, event FROM alert_history ORDER BY recorded_at DESC LIMIT 20;
+
+# View audit log
+SELECT recorded_at, user_email, action, resource FROM audit_logs ORDER BY recorded_at DESC LIMIT 20;
 ```
 
 ---
@@ -207,3 +213,25 @@ sudo chmod 440 /etc/sudoers.d/server-iq
 ```
 
 Or simply re-run the sudoers section from `setup.sh` manually.
+
+---
+
+## Optional Components
+
+### Fail2ban
+The Fail2ban page requires fail2ban to be installed on the host:
+```bash
+sudo apt install fail2ban
+```
+
+### Email Management
+The Email page requires Postfix and Dovecot:
+```bash
+sudo apt install postfix dovecot-core dovecot-imapd
+```
+
+### Backup Storage
+Backups are stored under `/var/backups/server-iq/` by default. Ensure sufficient disk space is available.
+
+### Weather
+Weather data is fetched from the Open-Meteo public API — no API key or configuration required. The server's geographic location is resolved automatically from its public IP address.

@@ -24,19 +24,35 @@ A self-hosted VPS admin console — Progressive Web App (PWA) you deploy once on
 
 | Area | What you get |
 |---|---|
-| **Dashboard** | Real-time CPU / RAM / Disk / Network gauges, Load Average, Disk I/O, TCP connections, Top-5 processes, service status grid, historical line charts (Recharts) |
-| **Health Check** | Disk, memory, load average and apt-update checks with OK / Warning / Critical classification |
+| **Dashboard** | Real-time CPU / RAM / Disk / Network gauges, Load Average, Disk I/O, TCP connections, Top-5 processes, service status grid, historical line charts (1 h / 2 h / 6 h / 24 h) |
+| **Health Check** | Per-partition disk, RAM, CPU load and apt-update checks with OK / Warning / Critical classification |
+| **Weather** | Current weather and forecast for the server's location via Open-Meteo |
 | **Services** | systemd service status, start / stop / restart, expandable detail panel (PID, memory, CPU time, active since), live journal log viewer |
-| **Docker** | List all containers (running + stopped), start / stop / restart / delete / reinstall, live log stream via WebSocket, resource stats |
+| **Docker** | List all containers (running + stopped), start / stop / restart / delete / reinstall, live log stream via WebSocket, live CPU % + memory stats |
 | **Firewall** | UFW status, enable / disable, add / delete rules |
-| **SSL Certs** | Let's Encrypt certificate expiry overview with color-coded warnings |
-| **Cron Jobs** | View, add and delete crontab entries for the service user |
-| **File Browser** | Full filesystem navigation (all paths), hidden files shown, inline text editor with save |
-| **Console** | PTY terminal (xterm.js) via WebSocket |
+| **Fail2ban** | Overview of active jails and banned IPs, one-click unban |
+| **Ports** | List of all open TCP / UDP ports with associated process names |
+| **SSL Certs** | Let's Encrypt certificate expiry overview with color-coded warnings, one-click renewal via certbot |
+| **Virtual Hosts** | Create / enable / disable / delete nginx virtual hosts; edit raw vhost config; request Let's Encrypt SSL per domain |
+| **Databases** | Manage PostgreSQL and MySQL connections; create / drop databases, users and tables; grant privileges; run ad-hoc SQL queries |
+| **Backups** | Create file-path and database backups, track status (running / done / error), download archives |
+| **Email** | Manage Postfix / Dovecot mailboxes and aliases; inspect and flush the mail queue |
+| **Updates** | List pending apt packages, run `apt update`, apply upgrades |
+| **Cron Jobs** | View, add and delete crontab entries; AI-powered cron expression helper |
+| **Bandwidth** | Historical inbound / outbound traffic chart (up to 90 days) |
+| **Access Log** | nginx / Apache access log viewer + live SSH auth-log stream |
+| **Network** | Ping, DNS lookup, TCP port-check diagnostics; live network interface stats |
+| **File Browser** | Full filesystem navigation (no path restrictions), hidden files, inline text editor, upload, copy, delete |
+| **Console** | Full PTY terminal (xterm.js) via WebSocket — works exactly like SSH |
+| **AI Assistant** | Multi-provider AI chat with live server context, log analysis, cron helper, agent mode (shell command execution) |
+| **Notifications** | Telegram Bot + SMTP alerts for service failures and recoveries, configurable check interval, alert history |
+| **Cleanup** | Scan disk for large files and Docker artifacts; run targeted cleanup actions |
+| **Power** | Reboot or shut down the server with a confirmation step |
+| **SSH Keys** | View, add and delete entries in `~/.ssh/authorized_keys` |
+| **Users** | User management (admin only) — create, edit, reset password, assign roles |
+| **Audit Log** | Full action history: who did what, when, from which IP |
+| **Settings** | Configure monitored services; set AI provider / model / API key; configure upload size limits |
 | **App Logs** | Live journalctl stream for the server-iq service itself |
-| **Notifications** | Telegram Bot + SMTP (Postfix-ready) alerts for service failures and recoveries |
-| **Users** | User management (admin-only), password reset, role assignment |
-| **Settings** | Configure which systemd services are monitored |
 | **PWA** | Installable on iOS / Android / Desktop, dark theme, responsive layout |
 
 ---
