@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git pull origin main)",
+      "Bash(git pull *)",
+      "Bash(git add *)",
+      "Bash(git add -A)",
+      "Bash(git commit -m *)",
+      "Bash(git push origin main)",
+      "Bash(git push *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git branch *)",
+      "Bash(npm install)",
+      "Bash(npm run dev *)",
+      "Bash(npm run build)",
+      "Bash(npm run typecheck)",
+      "Bash(npm run lint)"
+    ]
+  }
+}
