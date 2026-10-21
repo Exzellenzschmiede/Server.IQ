@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from fastapi.concurrency import run_in_threadpool
 
 from app.dependencies import require_admin
 from app.models import User
@@ -11,9 +12,9 @@ router = APIRouter()
 
 @router.get("/scan", response_model=CleanupScanResult)
 async def scan_disk(_: User = Depends(require_admin)):
-    return scan()
+    return await run_in_threadpool(scan)
 
 
 @router.post("/run", response_model=CleanupResult)
 async def run(_: User = Depends(require_admin), body: CleanupRequest = ...):
-    return run_cleanup(body.actions)
+    return await run_in_threadpool(run_cleanup, body.actions)
