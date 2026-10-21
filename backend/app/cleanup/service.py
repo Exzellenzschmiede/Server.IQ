@@ -105,23 +105,26 @@ def scan() -> CleanupScanResult:
 
     # ── Docker build cache ──────────────────────────────────────────────────
     if docker_ok:
-        r = _run(["docker", "system", "df", "--format", "{{json .}}"])
         cache_bytes = 0
-        for line in r.stdout.strip().splitlines():
-            try:
-                obj = json.loads(line)
-                if obj.get("Type") == "Build Cache":
-                    raw = obj.get("Size", "0B")
-                    if raw.endswith("GB"):
-                        cache_bytes = int(float(raw[:-2]) * 1024 ** 3)
-                    elif raw.endswith("MB"):
-                        cache_bytes = int(float(raw[:-2]) * 1024 ** 2)
-                    elif raw.endswith("kB"):
-                        cache_bytes = int(float(raw[:-2]) * 1024)
-                    elif raw.endswith("B"):
-                        cache_bytes = int(float(raw[:-1]))
-            except (json.JSONDecodeError, ValueError):
-                pass
+        try:
+            r = _run(["docker", "system", "df", "--format", "{{json .}}"], timeout=15)
+            for line in r.stdout.strip().splitlines():
+                try:
+                    obj = json.loads(line)
+                    if obj.get("Type") == "Build Cache":
+                        raw = obj.get("Size", "0B")
+                        if raw.endswith("GB"):
+                            cache_bytes = int(float(raw[:-2]) * 1024 ** 3)
+                        elif raw.endswith("MB"):
+                            cache_bytes = int(float(raw[:-2]) * 1024 ** 2)
+                        elif raw.endswith("kB"):
+                            cache_bytes = int(float(raw[:-2]) * 1024)
+                        elif raw.endswith("B"):
+                            cache_bytes = int(float(raw[:-1]))
+                except (json.JSONDecodeError, ValueError):
+                    pass
+        except subprocess.TimeoutExpired:
+            pass
         items.append(CleanableItem(
             key="docker_build_cache",
             label="Docker build cache",
